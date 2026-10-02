@@ -42,13 +42,12 @@ import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalVaultPalette
 import kotlinx.coroutines.launch
 
+// ORG-FIX: Removed orphaned PRIVACY and ADVANCED sections (streamlined to 5 sections)
 private enum class SettingsSection {
     MAIN_MENU,
     DISPLAY,
-    PRIVACY,
     INTEGRATIONS,
     DATA_BACKUP,
-    ADVANCED,
     SAMPLE_DATA
 }
 
@@ -223,12 +222,10 @@ fun SettingsScreen(
     val initialSection = remember {
         val sec = when (viewModel.initialSettingsSection) {
             "DISPLAY" -> SettingsSection.DISPLAY
-            "PRIVACY" -> SettingsSection.PRIVACY
             "INTEGRATIONS" -> SettingsSection.INTEGRATIONS
             "DATA_BACKUP" -> SettingsSection.DATA_BACKUP
-            "ADVANCED" -> SettingsSection.ADVANCED
             "SAMPLE_DATA" -> SettingsSection.SAMPLE_DATA
-            else -> SettingsSection.MAIN_MENU
+            else -> SettingsSection.MAIN_MENU // ORG-FIX: Any legacy intent safely lands on MAIN_MENU
         }
         viewModel.initialSettingsSection = null
         sec
@@ -243,10 +240,8 @@ fun SettingsScreen(
     val screenTitle = when (currentSection) {
         SettingsSection.MAIN_MENU -> "Settings"
         SettingsSection.DISPLAY -> "Display"
-        SettingsSection.PRIVACY -> "Privacy"
         SettingsSection.INTEGRATIONS -> "Integrations"
         SettingsSection.DATA_BACKUP -> "Data & Backup"
-        SettingsSection.ADVANCED -> "Advanced"
         SettingsSection.SAMPLE_DATA -> "Sample Data"
     }
 
@@ -334,24 +329,13 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState()),
+                        viewModel = viewModel, // ORG-FIX: Direct viewModel interaction, removing dead lambda proxies
+                        currentSettings = currentSettings,
                         themeName = themeName,
                         accentHex = accentHex,
-                        currentSettings = currentSettings,
                         stashDbKey = stashDbKey,
                         rdKeyConfigured = rdKey.isNotBlank() || torboxKey.isNotBlank(),
-                        onNavigateTo = { currentSection = it },
-                        onToggleCards = {
-                            viewModel.updateSettings(currentSettings.copy(showManagementCards = it))
-                        },
-                        onToggleGestures = {
-                            viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
-                        },
-                        onToggleBetaTest = {
-                            viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it))
-                        },
-                        onToggleUncached = {
-                            viewModel.updateSettings(currentSettings.copy(allowUncachedDownloads = it))
-                        }
+                        onNavigateTo = { currentSection = it }
                     )
                 }
                 SettingsSection.DISPLAY -> {
@@ -371,10 +355,6 @@ fun SettingsScreen(
                             accentHex = it
                             saveAllSettings()
                         },
-                        showCards = currentSettings.showManagementCards,
-                        onShowCardsChange = {
-                            viewModel.updateSettings(currentSettings.copy(showManagementCards = it))
-                        },
                         appIconStyle = currentSettings.appIconStyle,
                         onAppIconStyleChange = {
                             viewModel.updateSettings(currentSettings.copy(appIconStyle = it))
@@ -382,19 +362,6 @@ fun SettingsScreen(
                         transitionStyle = currentSettings.transitionStyle,
                         onTransitionStyleChange = {
                             viewModel.updateSettings(currentSettings.copy(transitionStyle = it))
-                        }
-                    )
-                }
-                SettingsSection.PRIVACY -> {
-                    SettingsPrivacySection(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding())
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        betaTestPrivacy = currentSettings.betaTestPrivacy,
-                        onBetaTestPrivacyChange = {
-                            viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it))
                         }
                     )
                 }
@@ -566,19 +533,6 @@ fun SettingsScreen(
                         onImportJson = { jsonStr -> viewModel.importJsonData(jsonStr) }
                     )
                 }
-                SettingsSection.ADVANCED -> {
-                    SettingsAdvancedSection(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding())
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        enableVideoPlayerGestures = currentSettings.enableVideoPlayerGestures,
-                        onEnableVideoPlayerGesturesChange = {
-                            viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
-                        }
-                    )
-                }
                 SettingsSection.SAMPLE_DATA -> {
                     SettingsSampleDataSection(
                         modifier = Modifier
@@ -606,27 +560,28 @@ fun SettingsScreen(
 }
 
 /**
- * MUSE-REF: Main Settings Menu organized in 6 distinct Grouped Cards:
- * [Appearance & Colors] [Playback & Downloads] [Data & Backup] [StashDB] [Advanced] [About]
+ * MUSE-REF: Main Settings Menu organized in exactly 5 distinct Grouped Cards:
+ * ① Appearance & Colors
+ * ② Integrations
+ * ③ Playback & Privacy
+ * ④ Data & Samples
+ * ⑤ About
  */
 @Composable
 private fun SettingsMainMenu(
     modifier: Modifier = Modifier,
+    viewModel: MainViewModel, // ORG-FIX: Clean direct viewModel reference
+    currentSettings: SettingsEntity,
     themeName: String,
     accentHex: String,
-    currentSettings: SettingsEntity,
     stashDbKey: String,
     rdKeyConfigured: Boolean,
-    onNavigateTo: (SettingsSection) -> Unit,
-    onToggleCards: (Boolean) -> Unit,
-    onToggleGestures: (Boolean) -> Unit,
-    onToggleBetaTest: (Boolean) -> Unit,
-    onToggleUncached: (Boolean) -> Unit
+    onNavigateTo: (SettingsSection) -> Unit
 ) {
     Column(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // 1. [Appearance & Colors]
+        // ① [Appearance & Colors]
         SettingsSectionHeader(text = "Appearance & Colors") // MUSE-REF
         GroupedCard {
             SettingsRow(
@@ -656,31 +611,32 @@ private fun SettingsMainMenu(
             )
             SettingsDivider()
             SettingsRow(
-                title = "Cards Layout",
-                subtitle = "Display cards for Actors and Studios management",
-                trailing = {
-                    Switch(
-                        checked = currentSettings.showManagementCards,
-                        onCheckedChange = onToggleCards,
-                        colors = museSwitchColors(), // MUSE-REF
-                        modifier = Modifier.testTag("cards_management_switch")
-                    )
-                },
-                onClick = { onToggleCards(!currentSettings.showManagementCards) }
-            )
-            SettingsDivider()
-            SettingsRow(
                 title = "App Icons",
                 subtitle = "Customize app launcher icon style",
                 trailing = { SettingsNavigationChevron() },
                 onClick = { onNavigateTo(SettingsSection.DISPLAY) }
             )
+            SettingsDivider()
+            // ORG-MOVED: DISPLAY → MAIN_MENU (Single source of truth for Cards Layout)
+            SettingsRow(
+                title = "Cards Layout",
+                subtitle = "Display cards for Actors and Studios management",
+                trailing = {
+                    Switch(
+                        checked = currentSettings.showManagementCards,
+                        onCheckedChange = { viewModel.updateSettings(currentSettings.copy(showManagementCards = it)) },
+                        colors = museSwitchColors(), // MUSE-REF
+                        modifier = Modifier.testTag("cards_management_switch")
+                    )
+                },
+                onClick = { viewModel.updateSettings(currentSettings.copy(showManagementCards = !currentSettings.showManagementCards)) }
+            )
         }
 
         Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        // 2. [Playback & Downloads]
-        SettingsSectionHeader(text = "Playback & Downloads") // MUSE-REF
+        // ② [Integrations] - ORG-FIX: Consolidated Debrid & StashDB into single group
+        SettingsSectionHeader(text = "Integrations") // MUSE-REF
         GroupedCard {
             SettingsRow(
                 title = "Debrid Services",
@@ -689,38 +645,7 @@ private fun SettingsMainMenu(
                 onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
             )
             SettingsDivider()
-            SettingsRow(
-                title = "Allow Uncached Downloads",
-                subtitle = "Stream torrents through Debrid while downloading",
-                trailing = {
-                    Switch(
-                        checked = currentSettings.allowUncachedDownloads,
-                        onCheckedChange = onToggleUncached,
-                        colors = museSwitchColors() // MUSE-REF
-                    )
-                },
-                onClick = { onToggleUncached(!currentSettings.allowUncachedDownloads) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
-
-        // 3. [Data & Backup]
-        SettingsSectionHeader(text = "Data & Backup") // MUSE-REF
-        GroupedCard {
-            SettingsRow(
-                title = "Data & Backup",
-                subtitle = "Export & Import JSON database backups",
-                trailing = { SettingsNavigationChevron() },
-                onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
-
-        // 4. [StashDB]
-        SettingsSectionHeader(text = "StashDB") // MUSE-REF
-        GroupedCard {
+            // ORG-MOVED: StashDB Group → Integrations Group
             SettingsRow(
                 title = "StashDB API Key",
                 subtitle = if (stashDbKey.isNotBlank()) "Configured ••••••••" else "Add your API token to search scenes & performers",
@@ -731,36 +656,53 @@ private fun SettingsMainMenu(
 
         Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        // 5. [Advanced]
-        SettingsSectionHeader(text = "Advanced") // MUSE-REF
+        // ③ [Playback & Privacy] - ORG-FIX: Consolidated Player Gestures and Beta Test Privacy
+        SettingsSectionHeader(text = "Playback & Privacy") // MUSE-REF
         GroupedCard {
+            // ORG-MOVED: ADVANCED → MAIN_MENU (Single source of truth for Player Gestures)
             SettingsRow(
                 title = "Player Gestures",
-                subtitle = "Control volume and brightness by vertical swipes in player",
+                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
                 trailing = {
                     Switch(
                         checked = currentSettings.enableVideoPlayerGestures,
-                        onCheckedChange = onToggleGestures,
+                        onCheckedChange = { viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it)) },
                         colors = museSwitchColors() // MUSE-REF
                     )
                 },
-                onClick = { onToggleGestures(!currentSettings.enableVideoPlayerGestures) }
+                onClick = { viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = !currentSettings.enableVideoPlayerGestures)) }
             )
             SettingsDivider()
+            // ORG-MOVED: PRIVACY → MAIN_MENU (Single source of truth for Beta Test Privacy)
             SettingsRow(
                 title = "Beta Test Privacy",
-                subtitle = "Apply smart privacy blur to all media images",
+                subtitle = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
                 trailing = {
                     Switch(
                         checked = currentSettings.betaTestPrivacy,
-                        onCheckedChange = onToggleBetaTest,
+                        onCheckedChange = { viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it)) },
                         colors = museSwitchColors(), // MUSE-REF
                         modifier = Modifier.testTag("beta_test_privacy_switch")
                     )
                 },
-                onClick = { onToggleBetaTest(!currentSettings.betaTestPrivacy) }
+                onClick = { viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = !currentSettings.betaTestPrivacy)) }
+            )
+            // ORG-FIX: Removed Allow Uncached Downloads from MAIN_MENU (retained exclusively in IntegrationsDropdownDebridSection)
+        }
+
+        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
+
+        // ④ [Data & Samples] - ORG-FIX: Consolidated Data & Backup with Sample Dataset
+        SettingsSectionHeader(text = "Data & Samples") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "Data & Backup",
+                subtitle = "Export & Import JSON database backups",
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
             )
             SettingsDivider()
+            // ORG-MOVED: ADVANCED → DATA & SAMPLES
             SettingsRow(
                 title = "Sample Dataset",
                 subtitle = "Load realistic sample data or clean database",
@@ -771,7 +713,7 @@ private fun SettingsMainMenu(
 
         Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        // 6. [About]
+        // ⑤ [About]
         SettingsSectionHeader(text = "About") // MUSE-REF
         GroupedCard {
             SettingsRow(
@@ -794,68 +736,8 @@ private fun SettingsMainMenu(
 }
 
 /**
- * MUSE-REF: Advanced Section in Grouped Card format
- */
-@Composable
-private fun SettingsAdvancedSection(
-    modifier: Modifier = Modifier,
-    enableVideoPlayerGestures: Boolean,
-    onEnableVideoPlayerGesturesChange: (Boolean) -> Unit
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        GroupedCard {
-            SettingsRow(
-                title = "Brightness & Volume Gestures",
-                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
-                trailing = {
-                    Switch(
-                        checked = enableVideoPlayerGestures,
-                        onCheckedChange = onEnableVideoPlayerGesturesChange,
-                        colors = museSwitchColors() // MUSE-REF
-                    )
-                },
-                onClick = { onEnableVideoPlayerGesturesChange(!enableVideoPlayerGestures) }
-            )
-        }
-    }
-}
-
-/**
- * MUSE-REF: Privacy Section in Grouped Card format
- */
-@Composable
-private fun SettingsPrivacySection(
-    modifier: Modifier = Modifier,
-    betaTestPrivacy: Boolean,
-    onBetaTestPrivacyChange: (Boolean) -> Unit
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        GroupedCard {
-            SettingsRow(
-                title = "Beta Test",
-                subtitle = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
-                trailing = {
-                    Switch(
-                        checked = betaTestPrivacy,
-                        onCheckedChange = onBetaTestPrivacyChange,
-                        colors = museSwitchColors(), // MUSE-REF
-                        modifier = Modifier.testTag("beta_test_privacy_switch")
-                    )
-                },
-                onClick = { onBetaTestPrivacyChange(!betaTestPrivacy) }
-            )
-        }
-    }
-}
-
-/**
  * MUSE-REF: Display Section in Grouped Card format
+ * ORG-FIX: Cards Layout toggle removed (single source of truth in MAIN_MENU)
  */
 @Composable
 private fun SettingsDisplaySection(
@@ -864,8 +746,6 @@ private fun SettingsDisplaySection(
     onThemeChange: (String) -> Unit,
     accentHex: String,
     onAccentChange: (String) -> Unit,
-    showCards: Boolean,
-    onShowCardsChange: (Boolean) -> Unit,
     appIconStyle: Int,
     onAppIconStyleChange: (Int) -> Unit,
     transitionStyle: Int,
@@ -877,7 +757,7 @@ private fun SettingsDisplaySection(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(20.dp) // MUSE-REF
     ) {
-        // Theme selection (Native UI with Dark, Amoled, Light) in Grouped Card
+        // Theme selection in Grouped Card
         GroupedCard {
             Column(
                 modifier = Modifier.padding(20.dp), // MUSE-REF
@@ -919,23 +799,6 @@ private fun SettingsDisplaySection(
                     onSelectStyle = onTransitionStyleChange
                 )
             }
-        }
-
-        // Cards layout toggle in Grouped Card
-        GroupedCard {
-            SettingsRow(
-                title = "Cards Layout",
-                subtitle = "Display cards for Actors and Studios management",
-                trailing = {
-                    Switch(
-                        checked = showCards,
-                        onCheckedChange = onShowCardsChange,
-                        colors = museSwitchColors(), // MUSE-REF
-                        modifier = Modifier.testTag("cards_management_switch")
-                    )
-                },
-                onClick = { onShowCardsChange(!showCards) }
-            )
         }
 
         // App Icon Style Picker in Grouped Card

@@ -1,7 +1,10 @@
 package com.example.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,31 +15,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.LocalAccentColor
+import com.example.ui.theme.LocalVaultPalette
 import com.example.ui.theme.MaterialThemePalette
 import com.example.ui.theme.MaterialYouColorPresets
 
 /**
- * Color Palette Horizontal Picker matching the MetroList/Material You UI pattern.
- * Features:
- * - Leading Palette Icon button for Dynamic System Theme.
- * - Circular multi-segment swatches with completely circular selection ring (CircleShape)
- *   matching the circular curvature of the swatches.
- * - Powered by all official themes from mpvRx (Catppuccin, Nord, Tokyo Night, Rose Pine, Gruvbox, Dracula, etc.)
+ * SELECT-UNIFY: Color Palette Horizontal Picker matching the unified MUSE-REF Selection Language.
+ * - Dynamic System tile uses 2.5dp accent border, accent.copy(alpha=0.12f) background, and 16dp check badge.
+ * - Circular swatches use SplitCircleSwatch with 2.5dp accent border and matching 16dp check badge.
+ * - Powered by LocalVaultPalette and LocalAccentColor.
  */
 @Composable
 fun ColorPalettePicker(
@@ -44,6 +43,8 @@ fun ColorPalettePicker(
     onSelectPalette: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val palette = LocalVaultPalette.current // SELECT-UNIFY
+    val accent = LocalAccentColor.current // SELECT-UNIFY
     val presets = MaterialYouColorPresets.Presets
     val scrollState = rememberScrollState()
 
@@ -59,17 +60,20 @@ fun ColorPalettePicker(
             Text(
                 text = "Color Palette",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
                 ),
-                color = MaterialTheme.colorScheme.onSurface
+                color = palette.textPrimary // SELECT-UNIFY
             )
 
             // Current theme name indicator
             val currentPreset = MaterialYouColorPresets.getPreset(selectedId)
             Text(
                 text = currentPreset.name,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = accent // SELECT-UNIFY: Accent color indicator
             )
         }
 
@@ -77,65 +81,126 @@ fun ColorPalettePicker(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), // SELECT-UNIFY: 12dp spacing
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Leading Palette Icon button (for Dynamic Monet) with rounded squircle / circular design
+            // 1. Leading Palette Icon button (for Dynamic Monet)
             val isDynamicSelected = selectedId.equals(MaterialYouColorPresets.SYSTEM_DYNAMIC_ID, ignoreCase = true) || selectedId.isBlank()
 
             Box(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(
-                        if (isDynamicSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                    )
-                    .border(
-                        width = if (isDynamicSelected) 2.5.dp else 1.dp,
-                        color = if (isDynamicSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(18.dp)
-                    )
-                    .clickable { onSelectPalette(MaterialYouColorPresets.SYSTEM_DYNAMIC_ID) },
+                    .size(54.dp), // SELECT-UNIFY: 54dp tile
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Palette,
-                    contentDescription = "Dynamic Palette",
-                    tint = if (isDynamicSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // 2. Presets: Circular swatches with Pure Circular Selection Ring (CircleShape)
-            presets.filter { it.id != MaterialYouColorPresets.SYSTEM_DYNAMIC_ID }.forEach { palette ->
-                val isSelected = selectedId.equals(palette.id, ignoreCase = true)
-
-                // Outer circular container with circular border selection
                 Box(
                     modifier = Modifier
                         .size(54.dp)
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(18.dp))
                         .background(
-                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            else Color.Transparent
+                            if (isDynamicSelected) accent.copy(alpha = 0.12f) // SELECT-UNIFY
+                            else palette.cardBg
                         )
                         .border(
-                            width = if (isSelected) 2.5.dp else 0.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            shape = CircleShape
+                            width = if (isDynamicSelected) 2.5.dp else 1.dp, // SELECT-UNIFY: 2.5dp accent border
+                            color = if (isDynamicSelected) accent else palette.border, // SELECT-UNIFY
+                            shape = RoundedCornerShape(18.dp)
                         )
-                        .clickable { onSelectPalette(palette.id) },
+                        .clickable { onSelectPalette(MaterialYouColorPresets.SYSTEM_DYNAMIC_ID) },
                     contentAlignment = Alignment.Center
                 ) {
-                    SplitCircleSwatch(
-                        topColor = palette.previewTop,
-                        bottomLeftColor = palette.previewBottomLeft,
-                        bottomRightColor = palette.previewBottomRight,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
+                    Icon(
+                        imageVector = Icons.Outlined.Palette,
+                        contentDescription = "Dynamic Palette",
+                        tint = if (isDynamicSelected) accent else palette.textSecondary, // SELECT-UNIFY
+                        modifier = Modifier.size(24.dp)
                     )
+                }
+
+                // Small Check badge on TopEnd
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isDynamicSelected,
+                    enter = scaleIn(tween(160)) + fadeIn(tween(160)),
+                    exit = fadeOut(tween(120)),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 3.dp, y = (-3).dp) // SELECT-UNIFY: Badge top-end offset
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp) // SELECT-UNIFY: 16dp check badge
+                            .clip(CircleShape)
+                            .background(accent),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp) // SELECT-UNIFY: 10dp white check icon
+                        )
+                    }
+                }
+            }
+
+            // 2. Presets: Circular swatches with Pure Circular Selection Ring (CircleShape) + Check Badge
+            presets.filter { it.id != MaterialYouColorPresets.SYSTEM_DYNAMIC_ID }.forEach { colorPalette ->
+                val isSelected = selectedId.equals(colorPalette.id, ignoreCase = true)
+
+                Box(
+                    modifier = Modifier.size(54.dp), // SELECT-UNIFY: 54dp tile
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Outer circular container with circular border selection
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isSelected) accent.copy(alpha = 0.15f) // SELECT-UNIFY
+                                else Color.Transparent
+                            )
+                            .border(
+                                width = if (isSelected) 2.5.dp else 0.dp, // SELECT-UNIFY: 2.5dp accent ring
+                                color = if (isSelected) accent else Color.Transparent, // SELECT-UNIFY
+                                shape = CircleShape
+                            )
+                            .clickable { onSelectPalette(colorPalette.id) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SplitCircleSwatch(
+                            topColor = colorPalette.previewTop,
+                            bottomLeftColor = colorPalette.previewBottomLeft,
+                            bottomRightColor = colorPalette.previewBottomRight,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                        )
+                    }
+
+                    // Matching 16dp Check badge on TopEnd when selected
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = isSelected,
+                        enter = scaleIn(tween(160)) + fadeIn(tween(160)),
+                        exit = fadeOut(tween(120)),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 2.dp, y = (-2).dp) // SELECT-UNIFY: Badge top-end offset
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp) // SELECT-UNIFY: 16dp check badge
+                            .clip(CircleShape)
+                            .background(accent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(10.dp) // SELECT-UNIFY: 10dp white check icon
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -1,10 +1,6 @@
 package com.example.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -12,17 +8,16 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.SwapVert
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.ui.theme.LocalAccentColor
+import com.example.ui.theme.LocalVaultPalette
 
 data class TransitionOptionItem(
     val id: Int,
@@ -31,12 +26,21 @@ data class TransitionOptionItem(
     val icon: ImageVector
 )
 
+/**
+ * SELECT-UNIFY: Rebuilt with unified SelectorOptionRow system:
+ * - 4 SelectorOptionRows with leading icon circle (38dp) and subtitle
+ * - Removed pill surface and RadioButton
+ * - Uses LocalVaultPalette and LocalAccentColor
+ */
 @Composable
 fun NativeTransitionSelector(
     selectedStyle: Int,
     onSelectStyle: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val palette = LocalVaultPalette.current // SELECT-UNIFY
+    val accent = LocalAccentColor.current // SELECT-UNIFY
+
     val options = remember {
         listOf(
             TransitionOptionItem(
@@ -68,92 +72,34 @@ fun NativeTransitionSelector(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp) // SELECT-UNIFY: 6.dp spacing
     ) {
         options.forEach { option ->
             val isSelected = selectedStyle == option.id
-            val containerColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.30f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
-                animationSpec = tween(220),
-                label = "transition_card_bg"
-            )
-            val borderColor by animateColorAsState(
-                targetValue = if (isSelected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                animationSpec = tween(220),
-                label = "transition_card_border"
-            )
 
-            Surface(
+            // SELECT-UNIFY: Unified SelectorOptionRow
+            SelectorOptionRow(
+                title = option.title,
+                subtitle = option.subtitle,
+                selected = isSelected,
                 onClick = { onSelectStyle(option.id) },
-                shape = CircleShape,
-                color = containerColor,
-                border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Preview Icon Swatch (Slimmer & Fully Circular)
+                leading = {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp) // SELECT-UNIFY: 38dp unified icon circle
                             .clip(CircleShape)
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                shape = CircleShape
-                            ),
+                            .background(if (isSelected) accent.copy(alpha = 0.15f) else palette.cardBg), // SELECT-UNIFY
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = option.icon,
                             contentDescription = option.title,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            tint = if (isSelected) accent else palette.textMuted, // SELECT-UNIFY
+                            modifier = Modifier.size(20.dp) // SELECT-UNIFY: 20dp icon
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = option.title,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 14.sp
-                            ),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = option.subtitle,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 11.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    RadioButton(
-                        selected = isSelected,
-                        onClick = { onSelectStyle(option.id) },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = MaterialTheme.colorScheme.primary,
-                            unselectedColor = MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
-            }
+            )
         }
     }
 }

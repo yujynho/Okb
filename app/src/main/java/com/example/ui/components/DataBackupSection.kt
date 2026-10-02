@@ -3,6 +3,8 @@ package com.example.ui.components
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,22 +19,33 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.LocalAccentColor
+import com.example.ui.theme.LocalVaultPalette
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * SELECT-UNIFY: Data & Backup Section unified into a single MUSE-REF GroupedCard.
+ * - Replaced separate cards and full-width buttons with unified clickable row design
+ * - 44dp leading icon circles in accent
+ * - Status messages placed inline with Color(0xFF30D158) for success
+ */
 @Composable
 fun DataBackupSection(
     onExportJson: suspend () -> String,
     onImportJson: suspend (String) -> Result<Int>,
     modifier: Modifier = Modifier
 ) {
+    val palette = LocalVaultPalette.current // SELECT-UNIFY
+    val accent = LocalAccentColor.current // SELECT-UNIFY
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -96,176 +109,191 @@ fun DataBackupSection(
     }
 
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
-        // 1. Export Card (JSON File Download)
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
+        // SELECT-UNIFY: Single GroupedCard for both Export and Import operations
+        UnifiedGroupedCard {
+            // 1. Export Data Row
             Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.FileDownload,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Export Data",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Save database backup directly as a downloadable JSON file",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = {
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
                         coroutineScope.launch {
                             val json = onExportJson()
                             pendingExportData = json
                             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                             exportLauncher.launch("goony_backup_$timestamp.json")
                         }
-                    },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export & Download JSON", fontWeight = FontWeight.SemiBold)
-                }
-
-                exportStatusMessage?.let { status ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isExportError) Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = if (isExportError) MaterialTheme.colorScheme.error else Color(0xFF10B981),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = status,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isExportError) MaterialTheme.colorScheme.error else Color(0xFF10B981)
-                        )
                     }
-                }
-            }
-        }
-
-        // 2. Import Card (JSON File Upload)
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(vertical = 18.dp, horizontal = 20.dp) // SELECT-UNIFY
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                        modifier = Modifier.size(44.dp)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        // Leading 44dp circle
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp) // SELECT-UNIFY: 44dp icon circle
+                                .clip(CircleShape)
+                                .background(accent.copy(alpha = 0.15f)), // SELECT-UNIFY
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.Outlined.FileUpload,
+                                imageVector = Icons.Outlined.FileDownload,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
+                                tint = accent, // SELECT-UNIFY
                                 modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Export Data",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.Medium, // SELECT-UNIFY
+                                    fontSize = 16.sp // SELECT-UNIFY
+                                ),
+                                color = palette.textPrimary // SELECT-UNIFY
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Save database backup directly as a downloadable JSON file",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 13.sp // SELECT-UNIFY
+                                ),
+                                color = palette.textSecondary // SELECT-UNIFY
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Import Data",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
+                    Icon(
+                        imageVector = Icons.Outlined.Download,
+                        contentDescription = "Export",
+                        tint = palette.textMuted, // SELECT-UNIFY
+                        modifier = Modifier.size(20.dp) // SELECT-UNIFY
+                    )
+                }
+
+                // Export status message under the row
+                exportStatusMessage?.let { status ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(start = 60.dp) // Indented to align with text
+                    ) {
+                        Icon(
+                            imageVector = if (isExportError) Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = if (isExportError) MaterialTheme.colorScheme.error else Color(0xFF30D158), // SELECT-UNIFY: 0xFF30D158
+                            modifier = Modifier.size(16.dp) // SELECT-UNIFY: 16dp
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Restore or add records to database by uploading a JSON file",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = status,
+                            fontSize = 12.sp, // SELECT-UNIFY: 12sp
+                            color = if (isExportError) MaterialTheme.colorScheme.error else Color(0xFF30D158) // SELECT-UNIFY
                         )
                     }
                 }
+            }
 
-                Button(
-                    onClick = {
+            // Hairline divider between Export and Import
+            UnifiedSettingsDivider() // SELECT-UNIFY
+
+            // 2. Import Data Row
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
                         importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
-                    ),
-                    shape = CircleShape,
-                    modifier = Modifier.fillMaxWidth()
+                    }
+                    .padding(vertical = 18.dp, horizontal = 20.dp) // SELECT-UNIFY
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(Icons.Outlined.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upload & Import JSON File", fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Leading 44dp circle
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp) // SELECT-UNIFY: 44dp icon circle
+                                .clip(CircleShape)
+                                .background(accent.copy(alpha = 0.15f)), // SELECT-UNIFY
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FileUpload,
+                                contentDescription = null,
+                                tint = accent, // SELECT-UNIFY
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Import Data",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.Medium, // SELECT-UNIFY
+                                    fontSize = 16.sp // SELECT-UNIFY
+                                ),
+                                color = palette.textPrimary // SELECT-UNIFY
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Restore or add records to database by uploading a JSON file",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 13.sp // SELECT-UNIFY
+                                ),
+                                color = palette.textSecondary // SELECT-UNIFY
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Icon(
+                        imageVector = Icons.Outlined.Upload,
+                        contentDescription = "Import",
+                        tint = palette.textMuted, // SELECT-UNIFY
+                        modifier = Modifier.size(20.dp) // SELECT-UNIFY
+                    )
                 }
 
+                // Import status message under the row
                 importStatusMessage?.let { status ->
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(start = 60.dp) // Indented to align with text
                     ) {
                         Icon(
                             imageVector = if (isImportError) Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircle,
                             contentDescription = null,
-                            tint = if (isImportError) MaterialTheme.colorScheme.error else Color(0xFF10B981),
-                            modifier = Modifier.size(18.dp)
+                            tint = if (isImportError) MaterialTheme.colorScheme.error else Color(0xFF30D158), // SELECT-UNIFY: 0xFF30D158
+                            modifier = Modifier.size(16.dp) // SELECT-UNIFY: 16dp
                         )
                         Text(
                             text = status,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isImportError) MaterialTheme.colorScheme.error else Color(0xFF10B981)
+                            fontSize = 12.sp, // SELECT-UNIFY: 12sp
+                            color = if (isImportError) MaterialTheme.colorScheme.error else Color(0xFF30D158) // SELECT-UNIFY
                         )
                     }
                 }
