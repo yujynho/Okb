@@ -9,12 +9,6 @@ import okhttp3.Response
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
-import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.Call
-import okhttp3.Callback
-import java.io.IOException
-import kotlin.coroutines.resumeWithException
-
 object NetworkClient {
     private val cookieStore = ConcurrentHashMap<String, MutableList<Cookie>>()
 
@@ -110,32 +104,6 @@ object NetworkClient {
             val bodyStr = response.body?.string() ?: ""
             response.close()
             bodyStr
-        }
-    }
-}
-
-/**
-     * Non-blocking, cancellable suspend extension for OkHttp Call execution.
-     */
-suspend fun Call.await(): Response {
-    return suspendCancellableCoroutine { continuation ->
-        enqueue(object : Callback {
-            override fun onResponse(call: Call, response: Response) {
-                continuation.resume(response) {
-                    try { response.close() } catch (_: Throwable) {}
-                }
-            }
-
-            override fun onFailure(call: Call, e: IOException) {
-                if (continuation.isCancelled) return
-                continuation.resumeWithException(e)
-            }
-        })
-
-        continuation.invokeOnCancellation {
-            try {
-                cancel()
-            } catch (_: Throwable) {}
         }
     }
 }
