@@ -48,7 +48,6 @@ sealed class ScreenState {
     object Studios : ScreenState()
     data class AddEditStudio(val studioId: String? = null) : ScreenState()
     data class StudioScenes(val studioId: String) : ScreenState()
-    data class PhotosetViewer(val title: String, val images: List<String>, val initialIndex: Int = 0) : ScreenState()
     object StashDb : ScreenState()
     object Settings : ScreenState()
 }

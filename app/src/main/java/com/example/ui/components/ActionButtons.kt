@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.example.R
 
 object BtnColors {
@@ -53,21 +54,25 @@ object BtnColors {
 
 val LocalActionsInteractive = compositionLocalOf { true }
 
-private val ActionTextShadowBackdrop = TextStyle(
-    platformStyle = PlatformTextStyle(includeFontPadding = false),
-    shadow = androidx.compose.ui.graphics.Shadow(
-        color = Color.White.copy(alpha = 0.5f),
-        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-        blurRadius = 6f
-    )
-)
+object ClickDebounce {
+    private var lastClickTime = 0L
 
-private val ActionTextShadowForeground = TextStyle(
+    @Synchronized
+    fun canClick(currentTime: Long = System.currentTimeMillis()): Boolean {
+        if (currentTime - lastClickTime >= 280L) {
+            lastClickTime = currentTime
+            return true
+        }
+        return false
+    }
+}
+
+private val ActionTextShadowSingle = TextStyle(
     platformStyle = PlatformTextStyle(includeFontPadding = false),
     shadow = androidx.compose.ui.graphics.Shadow(
-        color = Color.White.copy(alpha = 0.8f),
-        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-        blurRadius = 8f
+        color = Color.Black.copy(alpha = 0.35f),
+        offset = androidx.compose.ui.geometry.Offset(0f, 1f),
+        blurRadius = 4f
     )
 )
 
@@ -85,18 +90,28 @@ fun ActionCircleButton(
 ) {
     val haptic = LocalHapticFeedback.current
     val interactive = LocalActionsInteractive.current
+    val scope = rememberCoroutineScope()
     var pressed by remember { mutableStateOf(false) }
-    val lastClickTimeState = remember { mutableLongStateOf(0L) }
+    var isDebounceBlocked by remember { mutableStateOf(false) }
 
+    // 1) Separated press vs release specs
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled && interactive) 0.92f else 1f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        animationSpec = if (pressed) {
+            androidx.compose.animation.core.tween(90, easing = androidx.compose.animation.core.FastOutLinearInEasing)
+        } else {
+            androidx.compose.animation.core.spring(
+                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+            )
+        },
         label = "press"
     )
 
     Column(
         modifier = modifier.graphicsLayer {
-            alpha = if (enabled) 1f else 0.42f
+            // 3) Visual feedback: brief alpha decrease when debounce is blocked
+            alpha = if (enabled) (if (isDebounceBlocked) 0.60f else 1f) else 0.42f
         },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -116,10 +131,6 @@ fun ActionCircleButton(
                     detectTapGestures(
                         onPress = {
                             pressed = true
-                            haptic.performHapticFeedback(
-                                if (strongHaptic) HapticFeedbackType.LongPress
-                                else HapticFeedbackType.TextHandleMove
-                            )
                             try {
                                 tryAwaitRelease()
                             } finally {
@@ -127,10 +138,21 @@ fun ActionCircleButton(
                             }
                         },
                         onTap = {
-                            val now = System.currentTimeMillis()
-                            if (now - lastClickTimeState.longValue >= 280L) {
-                                lastClickTimeState.longValue = now
+                            // 3) Unified Debounce using ClickDebounce object
+                            if (ClickDebounce.canClick()) {
+                                // 2) Haptic moved from onPress to onTap
+                                haptic.performHapticFeedback(
+                                    if (strongHaptic) HapticFeedbackType.LongPress
+                                    else HapticFeedbackType.TextHandleMove
+                                )
                                 onClick()
+                            } else {
+                                // 3) Trigger visual feedback when blocked
+                                scope.launch {
+                                    isDebounceBlocked = true
+                                    kotlinx.coroutines.delay(120)
+                                    isDebounceBlocked = false
+                                }
                             }
                         }
                     )
@@ -151,16 +173,7 @@ fun ActionCircleButton(
                         .padding(top = 1.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = text,
-                        color = Color.White.copy(alpha = 0.3f),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.offset(x = 0.5.dp, y = 0.5.dp),
-                        style = ActionTextShadowBackdrop
-                    )
+                    // 9) Replaced double-text shadow hack with single Text + shadow style
                     Text(
                         text = text,
                         color = Color.White,
@@ -168,7 +181,7 @@ fun ActionCircleButton(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
                         textAlign = TextAlign.Center,
-                        style = ActionTextShadowForeground
+                        style = ActionTextShadowSingle
                     )
                 }
             }

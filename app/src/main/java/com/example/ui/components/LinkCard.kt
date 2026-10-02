@@ -65,6 +65,7 @@ import com.example.ui.ActiveInlineVideoPlayback
 import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalBetaTestPrivacy
 import com.example.ui.theme.LocalVaultPalette
+import com.example.ui.theme.VaultScrims
 import com.example.ui.theme.privacyImageBlur
 import java.text.SimpleDateFormat
 import java.util.*
@@ -126,22 +127,39 @@ fun LinkCard(
     val isOverlayActive = currentMenuState != CardActionMenuState.CLOSED
 
     var lastOpenMenuState by remember { mutableStateOf(CardActionMenuState.MAIN_MENU) }
-    if (currentMenuState != CardActionMenuState.CLOSED) {
-        lastOpenMenuState = currentMenuState
+    // 7) Side Effect Fix: update lastOpenMenuState in LaunchedEffect instead of direct assignment
+    LaunchedEffect(currentMenuState) {
+        if (currentMenuState != CardActionMenuState.CLOSED) {
+            lastOpenMenuState = currentMenuState
+        }
     }
 
-    val lastClickTimeState = remember { mutableLongStateOf(0L) }
+    val coroutineScope = rememberCoroutineScope()
+    var isCardDebounceBlocked by remember { mutableStateOf(false) }
+
+    // 3) Debounce Click using unified ClickDebounce and visual feedback
     fun debouncedClick(action: () -> Unit) {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastClickTimeState.longValue >= 280L) {
-            lastClickTimeState.longValue = currentTime
+        if (ClickDebounce.canClick()) {
             action()
+        } else {
+            coroutineScope.launch {
+                isCardDebounceBlocked = true
+                delay(120)
+                isCardDebounceBlocked = false
+            }
         }
+    }
+
+    // 4) Unified Overlay Animation Spec
+    val overlayAnimationSpec = if (isOverlayActive) {
+        tween<Float>(durationMillis = 190, easing = LinearOutSlowInEasing)
+    } else {
+        tween<Float>(durationMillis = 150, easing = FastOutLinearInEasing)
     }
 
     val menuProgress by animateFloatAsState(
         targetValue = if (isOverlayActive) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = LinearOutSlowInEasing),
+        animationSpec = overlayAnimationSpec,
         label = "menu_progress"
     )
 
@@ -171,14 +189,12 @@ fun LinkCard(
         }
     }
 
+    // 8) Unified Back and Scrim behavior for all submenus (returns to MAIN_MENU)
     fun handleScrimTap() {
         debouncedClick {
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             
-            if (currentMenuState == CardActionMenuState.ACTORS_MENU) {
-                subMenuState = null
-                onDismissActive()
-            } else if (currentMenuState != CardActionMenuState.MAIN_MENU) {
+            if (currentMenuState != CardActionMenuState.MAIN_MENU && currentMenuState != CardActionMenuState.CLOSED) {
                 subMenuState = CardActionMenuState.MAIN_MENU
             } else {
                 subMenuState = null
@@ -189,10 +205,7 @@ fun LinkCard(
 
     // Handle System Back button when overlay is open (returns to MAIN_MENU from submenus, or closes)
     BackHandler(enabled = isOverlayActive) {
-        if (currentMenuState == CardActionMenuState.ACTORS_MENU) {
-            subMenuState = null
-            onDismissActive()
-        } else if (currentMenuState != CardActionMenuState.MAIN_MENU && currentMenuState != CardActionMenuState.CLOSED) {
+        if (currentMenuState != CardActionMenuState.MAIN_MENU && currentMenuState != CardActionMenuState.CLOSED) {
             subMenuState = CardActionMenuState.MAIN_MENU
         } else {
             subMenuState = null
@@ -278,16 +291,27 @@ fun LinkCard(
     )
     val coverScale by animateFloatAsState(
         targetValue = if (isOverlayActive) 1.15f else 1.0f,
-        animationSpec = tween(
-            durationMillis = 420,
-            easing = FastOutSlowInEasing
-        ),
+        animationSpec = if (isOverlayActive) {
+            tween(
+                durationMillis = 420,
+                easing = FastOutSlowInEasing
+            )
+        } else {
+            tween(
+                durationMillis = 420,
+                delayMillis = 50,
+                easing = FastOutSlowInEasing
+            )
+        },
         label = "cover_scale"
     )
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                alpha = if (isCardDebounceBlocked) 0.65f else 1f
+            }
             .testTag("scene_card_${link.id}")
     ) {
         // ========================================================
@@ -336,19 +360,16 @@ fun LinkCard(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(palette.cardBg)
+                            .background(palette.skeletonBg) // BG-FIX
+                            .background(palette.cardBg) // BG-FIX
                             .background(shimmerBrush)
                     )
                 }
 
                 val isBetaTest = LocalBetaTestPrivacy.current
 
-                // Smooth Blur Radius applied selectively when overlay is active to ensure 120fps scrolling
-                val overlayBlurRadius by animateDpAsState(
-                    targetValue = if (isOverlayActive) 14.dp else 0.dp,
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                    label = "cover_overlay_blur"
-                )
+                // 10) Optimize blur during animation: Apply fixed 8.dp blur ONLY when fully active/overlay open to avoid GPU overhead
+                val showBlur = menuProgress == 1f
 
                 if (link.coverImage.isNotEmpty()) {
                     AsyncImage(
@@ -365,8 +386,8 @@ fun LinkCard(
                             .fillMaxSize()
                             .privacyImageBlur(isBetaTest)
                             .then(
-                                if (overlayBlurRadius > 0.5.dp) {
-                                    Modifier.blur(radius = overlayBlurRadius, edgeTreatment = BlurredEdgeTreatment.Rectangle)
+                                if (showBlur) {
+                                    Modifier.blur(radius = 8.dp, edgeTreatment = BlurredEdgeTreatment.Rectangle)
                                 } else Modifier
                             )
                             .graphicsLayer {
@@ -400,7 +421,7 @@ fun LinkCard(
             // Smooth Scrim Layer with simple fade in/out
             val scrimAlpha by animateFloatAsState(
                 targetValue = if (isOverlayActive) 1f else 0f,
-                animationSpec = tween(durationMillis = 150),
+                animationSpec = overlayAnimationSpec,
                 label = "scrim_alpha"
             )
 
@@ -409,7 +430,7 @@ fun LinkCard(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer { alpha = scrimAlpha }
-                        .background(Color.Black.copy(alpha = 0.65f))
+                        .background(VaultScrims.Overlay) // BG-FIX
                         .clickable(
                             enabled = isOverlayActive,
                             interactionSource = remember { MutableInteractionSource() },
@@ -442,22 +463,22 @@ fun LinkCard(
                             transitionSpec = {
                                 (fadeIn(animationSpec = tween(190, easing = LinearOutSlowInEasing)) +
                                         scaleIn(
-                                            initialScale = 0.70f,
+                                            initialScale = 0.92f,
                                             animationSpec = spring(
                                                 dampingRatio = Spring.DampingRatioMediumBouncy,
                                                 stiffness = Spring.StiffnessMediumLow
                                             )
                                         ))
                                     .togetherWith(
-                                        fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) +
+                                        fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
                                                 scaleOut(
                                                     targetScale = 0.82f,
-                                                    animationSpec = tween(120, easing = FastOutLinearInEasing)
+                                                    animationSpec = tween(150, easing = FastOutLinearInEasing)
                                                 )
                                     )
                             },
                             contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().animateContentSize(tween(180)),
                             label = "center_spread_content"
                         ) { state ->
                             when (state) {
@@ -645,11 +666,11 @@ fun LinkCard(
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    palette.surface,
+                                    palette.cardBg,
                                     palette.bg
                                 )
                             )
-                        )
+                        ) // BG-FIX
                         .clickable(enabled = false) {},
                     contentAlignment = Alignment.Center
                 ) {
@@ -680,11 +701,11 @@ fun LinkCard(
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    palette.surface,
-                                    palette.cardBg
+                                    palette.cardBg,
+                                    palette.bg
                                 )
                             )
-                        )
+                        ) // BG-FIX
                         .clickable(enabled = false) {},
                     contentAlignment = Alignment.Center
                 ) {
@@ -731,7 +752,7 @@ fun LinkCard(
         // ========================================================
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface
+            color = palette.surface // BG-FIX
         ) {
             Row(
                 modifier = Modifier

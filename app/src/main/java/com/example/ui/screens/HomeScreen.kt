@@ -76,6 +76,11 @@ import com.example.ui.theme.LocalVaultPalette
 import com.example.ui.theme.parseHexColor
 import com.example.ui.theme.privacyImageBlur
 
+private val PrivacyScrim = Color.Black.copy(alpha = 0.75f) // BG-FIX
+
+@Composable
+private fun isLightTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() > 0.5f // BG-FIX
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -378,7 +383,7 @@ fun HomeScreen(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false },
                                 shape = RoundedCornerShape(16.dp),
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant // BG-FIX
                             ) {
                                 DropdownMenuItem(
                                     text = {
@@ -603,7 +608,7 @@ fun HomeScreen(
                             onToggleBookmark = { viewModel.toggleBookmark(link.id) },
                             onPlay = { url -> viewModel.playVideo(url, link.title, cardId = link.id) },
                             onOpenGallery = {
-                                viewModel.navigateTo(ScreenState.PhotosetViewer(link.title, link.galleryUrls))
+                                viewModel.openLightbox(link.galleryUrls, 0)
                             },
                             onEdit = {
                                 viewModel.navigateTo(ScreenState.AddEditLink(link.id))
@@ -680,7 +685,7 @@ fun HomeScreen(
         }
 
         val isBetaTest = LocalBetaTestPrivacy.current
-        val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+        val isLight = isLightTheme() // BG-FIX
         val circleBorderColor = if (isLight) Color.Black else Color.White
 
         AlertDialog(
@@ -785,8 +790,8 @@ fun HomeScreen(
                                 Button(
                                     onClick = { confirmDeleteActor = true },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFEF4444).copy(alpha = 0.12f),
-                                        contentColor = Color(0xFFEF4444)
+                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f), // BG-FIX
+                                        contentColor = MaterialTheme.colorScheme.error // BG-FIX
                                     ),
                                     shape = CircleShape,
                                     modifier = Modifier
@@ -808,7 +813,7 @@ fun HomeScreen(
                             } else {
                                 Card(
                                     colors = CardDefaults.cardColors(
-                                        containerColor = Color(0xFFEF4444).copy(alpha = 0.12f)
+                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f) // BG-FIX
                                     ),
                                     shape = RoundedCornerShape(24.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -820,7 +825,7 @@ fun HomeScreen(
                                         Text(
                                             text = "Delete '${targetActor.name}' and all scenes referencing solely this actor? (Scenes with multiple actors will be preserved).",
                                             fontSize = 13.sp,
-                                            color = Color(0xFFDC2626),
+                                            color = MaterialTheme.colorScheme.error, // BG-FIX
                                             fontWeight = FontWeight.Medium
                                         )
                                         Row(
@@ -843,7 +848,7 @@ fun HomeScreen(
                                                     viewModel.navigateBack()
                                                 },
                                                 colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color(0xFFEF4444)
+                                                    containerColor = MaterialTheme.colorScheme.error // BG-FIX
                                                 ),
                                                 shape = CircleShape
                                             ) {
@@ -898,7 +903,7 @@ fun HomeScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(Color.Black.copy(alpha = 0.75f))
+                                                .background(PrivacyScrim) // BG-FIX
                                         )
                                     }
                                 } else {
@@ -1016,12 +1021,7 @@ fun HomeScreen(
                             // Horizontal Circle Photo Selector with Gradient Mask on edges
                             if (isFetchingImages || fetchedImages.size > 1) {
                                 val palette = LocalVaultPalette.current
-                                val isAmoled = palette.name.equals("amoled", ignoreCase = true)
-                                val skeletonBg = when {
-                                    isAmoled -> Color(0xFF1E1E26)
-                                    isLight -> Color(0xFFE2E2EA)
-                                    else -> Color(0xFF2C2C36)
-                                }
+                                val skeletonBg = palette.skeletonBg // BG-FIX
                                 val skeletonBorder = if (isLight) Color.Black.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.25f)
 
                                 Column(
@@ -1159,7 +1159,7 @@ fun HomeScreen(
         var gradientFraction by remember(targetStudio.id, targetStudio.logoBgColor) { mutableFloatStateOf(initialFraction) }
         var isCustomBgEnabled by remember(targetStudio.id, targetStudio.logoBgColor) { mutableStateOf(targetStudio.logoBgColor != null) }
 
-        val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+        val isLight = isLightTheme() // BG-FIX
         val circleBorderColor = if (isLight) Color.Black else Color.White
         val isBetaTestStudio = LocalBetaTestPrivacy.current
 
@@ -1258,8 +1258,8 @@ fun HomeScreen(
                                 Button(
                                     onClick = { confirmDeleteStudio = true },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFEF4444).copy(alpha = 0.12f),
-                                        contentColor = Color(0xFFEF4444)
+                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f), // BG-FIX
+                                        contentColor = MaterialTheme.colorScheme.error // BG-FIX
                                     ),
                                     shape = CircleShape,
                                     modifier = Modifier
@@ -1281,7 +1281,7 @@ fun HomeScreen(
                             } else {
                                 Card(
                                     colors = CardDefaults.cardColors(
-                                        containerColor = Color(0xFFEF4444).copy(alpha = 0.12f)
+                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f) // BG-FIX
                                     ),
                                     shape = RoundedCornerShape(24.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -1293,7 +1293,7 @@ fun HomeScreen(
                                         Text(
                                             text = "Delete '${targetStudio.name}' and all associated scenes without exception?",
                                             fontSize = 13.sp,
-                                            color = Color(0xFFDC2626),
+                                            color = MaterialTheme.colorScheme.error, // BG-FIX
                                             fontWeight = FontWeight.Medium
                                         )
                                         Row(
@@ -1316,7 +1316,7 @@ fun HomeScreen(
                                                     viewModel.navigateBack()
                                                 },
                                                 colors = ButtonDefaults.buttonColors(
-                                                    containerColor = Color(0xFFEF4444)
+                                                    containerColor = MaterialTheme.colorScheme.error // BG-FIX
                                                 ),
                                                 shape = CircleShape
                                             ) {
@@ -1371,7 +1371,7 @@ fun HomeScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .background(Color.Black.copy(alpha = 0.75f))
+                                                    .background(PrivacyScrim) // BG-FIX
                                             )
                                         }
                                     }
@@ -1622,7 +1622,7 @@ private fun GradientSlider(
                             )
                         )
                     )
-                    .border(0.75.dp, Color.Gray.copy(alpha = 0.4f), CircleShape)
+                    .border(0.75.dp, Color.Black.copy(alpha = 0.35f), CircleShape) // BG-FIX
             )
 
             // Dynamic Thumb with current color fill and crisp contrasting border
@@ -1682,9 +1682,8 @@ fun ActorStudioHeaderBanner(
     val accent = LocalAccentColor.current
     val isBetaTest = LocalBetaTestPrivacy.current
 
-    val isLight = palette.name.equals("light", ignoreCase = true) || MaterialTheme.colorScheme.background.luminance() > 0.5f
-    // Adaptive border color matching Actor / Studio management (Black in Light, White in Dark/Amoled)
-    val circleBorderColor = if (isLight) Color.Black else Color.White
+    val isLight = isLightTheme() // BG-FIX
+    val circleBorderColor = MaterialTheme.colorScheme.outlineVariant // BG-FIX
 
     Row(
         modifier = modifier
@@ -1751,7 +1750,7 @@ fun ActorStudioHeaderBanner(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .border(1.5.dp, circleBorderColor, CircleShape)
+                        .border(2.dp, circleBorderColor, CircleShape) // BG-FIX
                 )
             }
         } else if (studio != null) {
@@ -1765,7 +1764,7 @@ fun ActorStudioHeaderBanner(
                     .size(78.dp)
                     .clip(CircleShape)
                     .background(studioCustomBg)
-                    .border(1.5.dp, circleBorderColor, CircleShape),
+                    .border(2.dp, circleBorderColor, CircleShape), // BG-FIX
                 contentAlignment = Alignment.Center
             ) {
                 if (!studio.logoUrl.isNullOrBlank()) {
@@ -1782,7 +1781,7 @@ fun ActorStudioHeaderBanner(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.75f))
+                                .background(PrivacyScrim) // BG-FIX
                         )
                     }
                 } else {

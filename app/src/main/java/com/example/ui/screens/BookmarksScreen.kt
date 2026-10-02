@@ -20,6 +20,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -167,10 +169,18 @@ fun BookmarksScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = palette.bg, // BG-FIX
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = palette.border,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }, // BG-FIX
                 title = {
                     if (isSearchExpanded) {
                         LaunchedEffect(Unit) {
@@ -301,7 +311,7 @@ fun BookmarksScreen(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false },
                                 shape = RoundedCornerShape(16.dp),
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                containerColor = palette.cardBg // BG-FIX
                             ) {
                                 DropdownMenuItem(
                                     text = {
@@ -396,7 +406,7 @@ fun BookmarksScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = palette.surface // BG-FIX
                 )
             )
         }

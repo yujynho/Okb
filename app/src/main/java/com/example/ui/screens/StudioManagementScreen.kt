@@ -42,6 +42,8 @@ import com.example.ui.theme.parseHexColor
 import com.example.ui.theme.privacyImageBlur
 import java.util.UUID
 
+private val PrivacyScrim = Color.Black.copy(alpha = 0.75f) // BG-FIX
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudioManagementScreen(
@@ -225,11 +227,11 @@ fun StudioManagementScreen(
                         ) {
                             val isBetaTest = LocalBetaTestPrivacy.current
 
-                            val studioCustomBg = remember(studio.logoBgColor, palette.surface) {
+                            val studioCustomBg = remember(studio.logoBgColor, palette.cardBg) { // BG-FIX
                                 if (!studio.logoBgColor.isNullOrBlank()) {
-                                    parseHexColor(studio.logoBgColor, palette.surface)
+                                    parseHexColor(studio.logoBgColor, palette.cardBg) // BG-FIX
                                 } else {
-                                    palette.surface
+                                    palette.cardBg // BG-FIX
                                 }
                             }
 
@@ -265,7 +267,7 @@ fun StudioManagementScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(Color.Black.copy(alpha = 0.75f))
+                                                .background(PrivacyScrim) // BG-FIX
                                         )
                                     }
                                 }
@@ -274,7 +276,7 @@ fun StudioManagementScreen(
                                     modifier = Modifier
                                         .size(70.dp)
                                         .clip(CircleShape)
-                                        .background(palette.surface)
+                                        .background(palette.cardBg.copy(alpha = 0.85f)) // BG-FIX
                                         .border(1.5.dp, circleBorderColor, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -301,14 +303,6 @@ fun StudioManagementScreen(
                         }
                     }
 
-                    val isLight = palette.name.equals("light", ignoreCase = true)
-                    val isAmoled = palette.name.equals("amoled", ignoreCase = true)
-                    val neutralCardBg = when {
-                        isAmoled -> Color(0xFF1E1E24)
-                        isLight -> Color(0xFFFFFFFF)
-                        else -> Color(0xFF383842)
-                    }
-
                     if (showCards) {
                         Card(
                             modifier = Modifier
@@ -320,7 +314,7 @@ fun StudioManagementScreen(
                             elevation = CardDefaults.cardElevation(
                                 defaultElevation = if (isLight) 3.dp else 1.5.dp
                             ),
-                            colors = CardDefaults.cardColors(containerColor = neutralCardBg)
+                            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
                         ) {
                             itemContent()
                         }
@@ -352,7 +346,8 @@ fun StudioManagementScreen(
                 showAddDialog = false
                 studioToEdit = null
             },
-            title = { Text(if (editing != null) "Edit Studio" else "Add Studio") },
+            containerColor = palette.cardBg, // BG-FIX
+            title = { Text(if (editing != null) "Edit Studio" else "Add Studio", color = palette.textPrimary) }, // BG-FIX
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -378,14 +373,13 @@ fun StudioManagementScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = palette.surface,
-                            shadowElevation = 2.dp,
+                        Box(
                             modifier = Modifier
                                 .size(54.dp)
                                 .clip(CircleShape)
-                                .border(1.5.dp, circleBorderColor, CircleShape)
+                                .background(palette.surface) // BG-FIX
+                                .border(1.5.dp, circleBorderColor, CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
                             if (logoUrl.trim().isNotEmpty()) {
                                 AsyncImage(
@@ -395,14 +389,12 @@ fun StudioManagementScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_nav_studio),
-                                        contentDescription = null,
-                                        tint = palette.textMuted,
-                                        modifier = Modifier.size(30.dp)
-                                    )
-                                }
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_nav_studio),
+                                    contentDescription = null,
+                                    tint = palette.textMuted,
+                                    modifier = Modifier.size(30.dp)
+                                )
                             }
                         }
                         Column {

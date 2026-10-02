@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -120,14 +121,15 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = palette.bg, // BG-FIX
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         screenTitle,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = palette.textPrimary // BG-FIX
                     )
                 },
                 navigationIcon = {
@@ -140,12 +142,13 @@ fun SettingsScreen(
                     }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = palette.textPrimary // BG-FIX
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = palette.surface // BG-FIX
                 )
             )
         }
@@ -260,7 +263,8 @@ fun SettingsScreen(
                         // Metadata Card (StashDB)
                         Card(
                             shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+                            border = BorderStroke(1.dp, palette.border), // BG-FIX
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -273,7 +277,7 @@ fun SettingsScreen(
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.SemiBold
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = palette.textPrimary // BG-FIX
                                 )
 
                                 Row(
@@ -285,14 +289,14 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.Key,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = accent, // BG-FIX
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "StashDB API Key",
                                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = palette.textPrimary // BG-FIX
                                         )
                                     }
 
@@ -325,12 +329,12 @@ fun SettingsScreen(
                                         viewModel.updateSettings(currentSettings.copy(stashDbApiKey = it.trim()))
                                     },
                                     placeholder = { Text("Paste StashDB API token here...", fontSize = 14.sp) },
-                                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, lineHeight = 20.sp),
+                                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, lineHeight = 20.sp, color = palette.textPrimary),
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Key,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = accent, // BG-FIX
                                             modifier = Modifier
                                                 .padding(start = 10.dp)
                                                 .size(22.dp)
@@ -362,7 +366,7 @@ fun SettingsScreen(
                                 ) {
                                     Text(
                                         text = "Get API key from stashdb.org profile",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = palette.textSecondary, // BG-FIX
                                         fontSize = 12.sp
                                     )
                                 }
@@ -445,6 +449,7 @@ private fun SettingsMainMenu(
     betaTestActive: Boolean,
     onNavigateTo: (SettingsSection) -> Unit
 ) {
+    val palette = LocalVaultPalette.current // BG-FIX
     Column(modifier = modifier) {
         // Native Android Preferences style items with Custom Redesigned Icons
         SettingsPreferenceItem(
@@ -454,7 +459,7 @@ private fun SettingsMainMenu(
             onClick = { onNavigateTo(SettingsSection.DISPLAY) }
         )
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
 
         SettingsPreferenceItem(
             iconRes = R.drawable.ic_settings_privacy,
@@ -463,7 +468,7 @@ private fun SettingsMainMenu(
             onClick = { onNavigateTo(SettingsSection.PRIVACY) }
         )
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
 
         SettingsPreferenceItem(
             iconRes = R.drawable.ic_settings_integrations,
@@ -472,7 +477,7 @@ private fun SettingsMainMenu(
             onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
         )
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
 
         SettingsPreferenceItem(
             iconRes = R.drawable.ic_settings_backup,
@@ -481,7 +486,7 @@ private fun SettingsMainMenu(
             onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
         )
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
 
         SettingsPreferenceItem(
             iconRes = R.drawable.ic_settings_advanced,
@@ -490,7 +495,7 @@ private fun SettingsMainMenu(
             onClick = { onNavigateTo(SettingsSection.ADVANCED) }
         )
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
 
         SettingsPreferenceItem(
             iconRes = R.drawable.ic_settings_sample_data,
@@ -516,7 +521,8 @@ private fun SettingsAdvancedSection(
     ) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+            border = BorderStroke(1.dp, palette.border), // BG-FIX
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -529,7 +535,7 @@ private fun SettingsAdvancedSection(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = palette.textPrimary // BG-FIX
                 )
 
                 Row(
@@ -541,13 +547,13 @@ private fun SettingsAdvancedSection(
                         Text(
                             text = "Brightness & Volume Gestures",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = palette.textPrimary // BG-FIX
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = palette.textSecondary // BG-FIX
                         )
                     }
                     Switch(
@@ -579,7 +585,8 @@ private fun SettingsPrivacySection(
     ) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+            border = BorderStroke(1.dp, palette.border), // BG-FIX
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -611,12 +618,12 @@ private fun SettingsPrivacySection(
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = palette.textPrimary // BG-FIX
                         )
                         Text(
                             text = "Manage media visibility and privacy filters",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = palette.textSecondary // BG-FIX
                         )
                     }
                 }
@@ -641,7 +648,7 @@ private fun SettingsPrivacySection(
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = palette.textPrimary // BG-FIX
                             )
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
@@ -660,7 +667,7 @@ private fun SettingsPrivacySection(
                         Text(
                             text = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = palette.textSecondary, // BG-FIX
                             lineHeight = 18.sp
                         )
                     }
@@ -672,7 +679,7 @@ private fun SettingsPrivacySection(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = accent,
                             uncheckedThumbColor = palette.textMuted,
-                            uncheckedTrackColor = palette.surface
+                            uncheckedTrackColor = palette.skeletonBg // BG-FIX
                         ),
                         modifier = Modifier.testTag("beta_test_privacy_switch")
                     )
@@ -690,6 +697,7 @@ private fun SettingsPreferenceItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val palette = LocalVaultPalette.current // BG-FIX
     Surface(
         onClick = onClick,
         color = Color.Transparent,
@@ -704,7 +712,7 @@ private fun SettingsPreferenceItem(
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = palette.textSecondary, // BG-FIX
                 modifier = Modifier.size(24.dp)
             )
 
@@ -717,14 +725,14 @@ private fun SettingsPreferenceItem(
                         fontWeight = FontWeight.Medium,
                         fontSize = 17.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = palette.textPrimary // BG-FIX
                 )
                 if (summary.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = summary,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = palette.textSecondary // BG-FIX
                     )
                 }
             }
@@ -732,7 +740,7 @@ private fun SettingsPreferenceItem(
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                tint = palette.textSecondary.copy(alpha = 0.4f), // BG-FIX
                 modifier = Modifier.size(14.dp)
             )
         }
@@ -763,7 +771,8 @@ private fun SettingsDisplaySection(
         // Theme selection (Native UI with Dark, Amoled, Light)
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+            border = BorderStroke(1.dp, palette.border) // BG-FIX
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -775,7 +784,7 @@ private fun SettingsDisplaySection(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = palette.textPrimary // BG-FIX
                 )
 
                 NativeThemeSelector(
@@ -788,7 +797,8 @@ private fun SettingsDisplaySection(
         // Transition Animation selection (Default Motion, Lateral Slide, Smooth Fade & Scale)
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+            border = BorderStroke(1.dp, palette.border) // BG-FIX
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -800,7 +810,7 @@ private fun SettingsDisplaySection(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = palette.textPrimary // BG-FIX
                 )
 
                 NativeTransitionSelector(
@@ -813,7 +823,8 @@ private fun SettingsDisplaySection(
         // Cards layout toggle for Actors and Studios management
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+            border = BorderStroke(1.dp, palette.border) // BG-FIX
         ) {
             Row(
                 modifier = Modifier
@@ -829,13 +840,13 @@ private fun SettingsDisplaySection(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = palette.textPrimary // BG-FIX
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         "Display cards for Actors and Studios management",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = palette.textSecondary // BG-FIX
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -850,7 +861,7 @@ private fun SettingsDisplaySection(
         // App Icon Style Picker
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
         ) {
             Box(modifier = Modifier.padding(16.dp)) {
                 IconStylePicker(
@@ -863,7 +874,7 @@ private fun SettingsDisplaySection(
         // Color Palette (Material You 3-split circular palette picker)
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
         ) {
             Box(modifier = Modifier.padding(16.dp)) {
                 ColorPalettePicker(
@@ -933,7 +944,9 @@ private fun IconStylePicker(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val accent = LocalAccentColor.current
+    val palette = LocalVaultPalette.current // BG-FIX
     val options = listOf(
+        // BG-FIX-KEPT: Hardcoded preview colors represent real app icon styles, not theme colors.
         Triple("Inverted", Color(0xFFF3F4F6), Color.Black),
         Triple("Default", Color(0xFF58595e), Color.White),
         Triple("Blue", Color(0xFF3B82F6), Color.White),
@@ -951,7 +964,7 @@ private fun IconStylePicker(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             ),
-            color = MaterialTheme.colorScheme.onSurface
+            color = palette.textPrimary // BG-FIX
         )
 
         Row(
@@ -976,13 +989,13 @@ private fun IconStylePicker(
                             )
                             .border(
                                 width = if (isSelected) 2.5.dp else 1.dp,
-                                color = if (isSelected) accent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                color = if (isSelected) accent else palette.border.copy(alpha = 0.3f), // BG-FIX
                                 shape = CircleShape
                             )
                             .clickable {
                                 onSelectIconStyle(index)
                                 switchAppIcon(context, index)
-                            },
+                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -1006,7 +1019,7 @@ private fun IconStylePicker(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 11.sp
                         ),
-                        color = if (isSelected) accent else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isSelected) accent else palette.textSecondary // BG-FIX
                     )
                 }
             }
@@ -1022,13 +1035,15 @@ private fun SettingsSampleDataSection(
     onLoadSample: () -> Unit,
     onClearSample: () -> Unit
 ) {
+    val palette = LocalVaultPalette.current // BG-FIX
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
+            border = BorderStroke(1.dp, palette.border) // BG-FIX
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -1037,12 +1052,13 @@ private fun SettingsSampleDataSection(
                 Text(
                     "Sample dataset management",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = palette.textPrimary // BG-FIX
                 )
                 Text(
                     "Load realistic sample data (studios, actors, scenes with magnets) or clean them completely from the database",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = palette.textSecondary // BG-FIX
                 )
 
                 Row(
@@ -1076,7 +1092,7 @@ private fun SettingsSampleDataSection(
                     Text(
                         sampleDataStatus,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF10B981)
+                        color = MaterialTheme.colorScheme.tertiary // BG-FIX
                     )
                 }
             }

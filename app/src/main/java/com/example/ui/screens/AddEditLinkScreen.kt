@@ -227,15 +227,15 @@ fun AddEditLinkScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.background, // BG-FIX
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (existingLink != null) "Edit Scene" else "Add Scene", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
+                title = { Text(if (existingLink != null) "Edit Scene" else "Add Scene", color = palette.textPrimary, fontWeight = FontWeight.Bold) }, // BG-FIX
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = palette.textPrimary) // BG-FIX
                     }
                 },
                 actions = {
@@ -276,10 +276,10 @@ fun AddEditLinkScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    containerColor = palette.surface, // BG-FIX
+                    titleContentColor = palette.textPrimary, // BG-FIX
+                    navigationIconContentColor = palette.textPrimary, // BG-FIX
+                    actionIconContentColor = palette.textSecondary // BG-FIX
                 )
             )
         }
@@ -976,7 +976,7 @@ private fun TagMultiSelectDialog(
             }
         },
         shape = RoundedCornerShape(28.dp),
-        containerColor = palette.surface
+        containerColor = palette.cardBg // BG-FIX
     )
 }
 

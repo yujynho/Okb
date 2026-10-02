@@ -44,6 +44,8 @@ import com.example.ui.theme.LocalVaultPalette
 import com.example.ui.theme.privacyImageBlur
 import java.util.UUID
 
+private val PrivacyScrim = Color.Black.copy(alpha = 0.75f) // BG-FIX
+
 enum class ManagementSortOption {
     NAME_AZ,
     NAME_ZA,
@@ -281,18 +283,14 @@ fun ActorManagementScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(Color.Black.copy(alpha = 0.75f))
+                                                .background(PrivacyScrim) // BG-FIX
                                         )
                                     }
                                 } else {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    listOf(accent.copy(alpha = 0.25f), palette.cardBg)
-                                                )
-                                            ),
+                                            .background(palette.cardBg.copy(alpha = 0.85f)), // BG-FIX
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -330,14 +328,6 @@ fun ActorManagementScreen(
                         }
                     }
 
-                    val isLight = palette.name.equals("light", ignoreCase = true)
-                    val isAmoled = palette.name.equals("amoled", ignoreCase = true)
-                    val neutralCardBg = when {
-                        isAmoled -> Color(0xFF1E1E24)
-                        isLight -> Color(0xFFFFFFFF)
-                        else -> Color(0xFF383842)
-                    }
-
                     if (showCards) {
                         Card(
                             modifier = Modifier
@@ -349,7 +339,7 @@ fun ActorManagementScreen(
                             elevation = CardDefaults.cardElevation(
                                 defaultElevation = if (isLight) 3.dp else 1.5.dp
                             ),
-                            colors = CardDefaults.cardColors(containerColor = neutralCardBg)
+                            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
                         ) {
                             itemContent()
                         }
@@ -381,7 +371,8 @@ fun ActorManagementScreen(
                 showAddDialog = false
                 actorToEdit = null
             },
-            title = { Text(if (editing != null) "Edit Actor" else "Add Actor") },
+            containerColor = palette.cardBg, // BG-FIX
+            title = { Text(if (editing != null) "Edit Actor" else "Add Actor", color = palette.textPrimary) }, // BG-FIX
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -407,14 +398,13 @@ fun ActorManagementScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = palette.surface,
-                            shadowElevation = 2.dp,
+                        Box(
                             modifier = Modifier
                                 .size(54.dp)
                                 .clip(CircleShape)
-                                .border(1.5.dp, circleBorderColor, CircleShape)
+                                .background(palette.surface) // BG-FIX
+                                .border(1.5.dp, circleBorderColor, CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
                             if (imageUrl.trim().isNotEmpty()) {
                                 AsyncImage(
@@ -424,14 +414,12 @@ fun ActorManagementScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
-                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_nav_actor),
-                                        contentDescription = null,
-                                        tint = palette.textMuted,
-                                        modifier = Modifier.size(30.dp)
-                                    )
-                                }
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_nav_actor),
+                                    contentDescription = null,
+                                    tint = palette.textMuted,
+                                    modifier = Modifier.size(30.dp)
+                                )
                             }
                         }
                         Column {

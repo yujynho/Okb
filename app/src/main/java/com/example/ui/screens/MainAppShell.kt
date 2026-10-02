@@ -38,6 +38,8 @@ import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalVaultPalette
 import kotlinx.coroutines.launch
 
+private val DialogScrim = Color.Black.copy(alpha = 0.65f) // BG-FIX
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppShell(viewModel: MainViewModel) {
@@ -83,7 +85,7 @@ fun MainAppShell(viewModel: MainViewModel) {
         scrimColor = Color.Black.copy(alpha = 0.5f),
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = palette.surface,
+                drawerContainerColor = palette.cardBg, // BG-FIX
                 drawerContentColor = palette.textPrimary,
                 modifier = Modifier.width(280.dp)
             ) {
@@ -385,7 +387,6 @@ fun MainAppShell(viewModel: MainViewModel) {
                                 viewModel = viewModel,
                                 onOpenDrawer = {}
                             )
-                            is ScreenState.PhotosetViewer -> PhotosetViewerScreen(viewModel, screen.title, screen.images, screen.initialIndex)
                             is ScreenState.StashDb -> StashDbScreen(
                                 viewModel = viewModel,
                                 onOpenDrawer = {}
@@ -425,7 +426,7 @@ fun MainAppShell(viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.6f)),
+                            .background(DialogScrim), // BG-FIX
                         contentAlignment = Alignment.Center
                     ) {
                         Card(
@@ -433,7 +434,7 @@ fun MainAppShell(viewModel: MainViewModel) {
                                 .widthIn(max = 320.dp)
                                 .padding(20.dp),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = palette.surface)
+                            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
                         ) {
                             Column(
                                 modifier = Modifier.padding(20.dp),
@@ -467,7 +468,7 @@ fun MainAppShell(viewModel: MainViewModel) {
                             Icon(
                                 Icons.Default.ErrorOutline,
                                 contentDescription = null,
-                                tint = Color(0xFFEF4444),
+                                tint = MaterialTheme.colorScheme.error, // BG-FIX
                                 modifier = Modifier.size(36.dp)
                             )
                         },

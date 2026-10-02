@@ -243,7 +243,7 @@ fun ExoPlayerOverlay(
     var showControls by remember { mutableStateOf(true) }
     var isPlaying by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
-    var currentPos by remember { mutableLongStateOf(initialPositionMs) }
+    var currentPos by remember(selectedQuality?.url, initialPositionMs) { mutableLongStateOf(initialPositionMs) }
     var duration by remember { mutableLongStateOf(0L) }
     var bufferedPos by remember { mutableLongStateOf(0L) }
     var videoResolution by remember { mutableStateOf("Detecting...") }
@@ -533,11 +533,10 @@ fun ExoPlayerOverlay(
             val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
 
             val resumePosition = initialPositionMs
-            activeExoPlayer.setMediaSource(mediaSource)
+            activeExoPlayer.setMediaSource(mediaSource, true)
             activeExoPlayer.prepare()
-            if (resumePosition > 0) {
-                activeExoPlayer.seekTo(resumePosition)
-            }
+            activeExoPlayer.seekTo(resumePosition)
+            currentPos = resumePosition
             activeExoPlayer.play()
         } catch (e: Exception) {
             errorMessage = "Playback Setup Failed"
@@ -1414,7 +1413,7 @@ fun InlineCardPlayer(
     var showControls by remember { mutableStateOf(true) }
     var isPlaying by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
-    var currentPos by remember { mutableLongStateOf(0L) }
+    var currentPos by remember(selectedQuality?.url) { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var bufferedPos by remember { mutableLongStateOf(0L) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -1598,12 +1597,10 @@ fun InlineCardPlayer(
             }
 
             val mediaSource = mediaSourceFactory.createMediaSource(mediaItemBuilder.build())
-            val resumePosition = currentPos
-            activeExoPlayer.setMediaSource(mediaSource)
+            activeExoPlayer.setMediaSource(mediaSource, true)
             activeExoPlayer.prepare()
-            if (resumePosition > 0) {
-                activeExoPlayer.seekTo(resumePosition)
-            }
+            activeExoPlayer.seekTo(0L)
+            currentPos = 0L
             activeExoPlayer.play()
         } catch (e: Exception) {
             errorMessage = "Playback Setup Failed"

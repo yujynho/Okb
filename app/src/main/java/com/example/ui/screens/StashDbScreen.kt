@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -95,6 +96,9 @@ import java.util.Locale
 import java.util.UUID
 
 import com.example.ui.StashSearchType
+
+private val StudioLogoBgDark = Color(0xFF0F0F12)
+private val StudioLogoBgLight = Color(0xFF1F2937) // رمادي داكن على الفاتح
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -404,7 +408,7 @@ fun StashDbScreen(
                 // Warning Banner: Missing StashDB API Key
                 if (settings.stashDbApiKey.isBlank()) {
                     Surface(
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f), // BG-FIX
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.45f)),
                         modifier = Modifier
@@ -447,7 +451,7 @@ fun StashDbScreen(
                 } else if (searchError != null) {
                     // Search Error Banner
                     Surface(
-                        color = palette.surface,
+                        color = palette.cardBg, // BG-FIX
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
                         modifier = Modifier
@@ -478,7 +482,16 @@ fun StashDbScreen(
                 // Two Mode Selector Tabs: Actors & Studio with Smooth Sliding Indicator
                 Surface(
                     color = palette.surface,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            drawLine(
+                                color = palette.border,
+                                start = Offset(0f, size.height),
+                                end = Offset(size.width, size.height),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        } // BG-FIX
                 ) {
                     val indicatorBias by animateFloatAsState(
                         targetValue = if (activeType == StashSearchType.ACTORS) -1f else 1f,
@@ -1026,7 +1039,9 @@ fun HorizontalStudioCircleItem(
     }
 
     // Dark AMOLED background specifically designed for transparent Studio PNG logos
-    val studioAmoledBg = Color(0xFF0F0F12)
+    // BG-FIX: PNG logos are designed for dark backgrounds
+    val studioLogoBg = if (MaterialTheme.colorScheme.background.luminance() > 0.5f)
+        StudioLogoBgLight else StudioLogoBgDark
 
     val isBetaTest = LocalBetaTestPrivacy.current
 
@@ -1057,7 +1072,7 @@ fun HorizontalStudioCircleItem(
                     CircleShape
                 )
                 .clip(CircleShape)
-                .background(studioAmoledBg),
+                .background(studioLogoBg), // BG-FIX
             contentAlignment = Alignment.Center
         ) {
             if (imageRequest != null) {
@@ -1172,7 +1187,7 @@ fun StashGridPhotoCard(
             )
             .testTag("stash_scene_${scene.id}"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = palette.surface),
+        colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
         border = null
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -1182,7 +1197,7 @@ fun StashGridPhotoCard(
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(palette.cardBg),
+                    .background(Color.Transparent), // BG-FIX
                 contentAlignment = Alignment.Center
             ) {
                 if (!scene.coverUrl.isNullOrBlank()) {
@@ -1270,7 +1285,7 @@ fun StashGridPhotoCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        color = palette.surface,
+                        color = palette.cardBg, // BG-FIX
                         shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                     )
                     .drawBehind {
@@ -1517,6 +1532,10 @@ private fun sortStudiosByRelevance(studios: List<StashStudio>, query: String): L
  */
 @Composable
 private fun StudioFallbackEmblem(name: String, accentColor: Color) {
+    // BG-FIX: PNG logos are designed for dark backgrounds
+    val studioLogoBg = if (MaterialTheme.colorScheme.background.luminance() > 0.5f)
+        StudioLogoBgLight else StudioLogoBgDark
+
     val initials = name.trim().split(" ", "-", "_")
         .take(2)
         .mapNotNull { it.firstOrNull()?.uppercaseChar() }
@@ -1529,7 +1548,7 @@ private fun StudioFallbackEmblem(name: String, accentColor: Color) {
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(accentColor.copy(alpha = 0.35f), Color(0xFF0F0F12))
+                    colors = listOf(accentColor.copy(alpha = 0.35f), studioLogoBg) // BG-FIX
                 )
             )
     ) {
