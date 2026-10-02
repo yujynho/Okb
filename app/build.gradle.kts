@@ -16,8 +16,11 @@ android {
     applicationId = "com.aistudio.applet.ntcsmg"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    val vCode = (providers.gradleProperty("versionCode").orNull
+        ?: System.getenv("GITHUB_RUN_NUMBER")
+        ?: "1")!!.toInt()
+    versionCode = vCode
+    versionName = "1.0.$vCode"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -121,7 +124,6 @@ dependencies {
   implementation(libs.coil.svg)
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.ui)
-  implementation(libs.androidx.media3.datasource.okhttp)
   implementation(libs.androidx.media3.exoplayer.dash)
   implementation(libs.androidx.media3.exoplayer.hls)
   implementation(libs.jsoup)
@@ -150,7 +152,6 @@ dependencies {
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation(libs.okhttp.mockwebserver)
   testImplementation(libs.robolectric)
   androidTestImplementation(platform(libs.androidx.compose.bom))
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
