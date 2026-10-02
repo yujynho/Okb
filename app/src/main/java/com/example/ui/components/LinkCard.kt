@@ -225,15 +225,15 @@ fun LinkCard(
         formatDisplayDate(ts)
     }
 
-    // Unified URL Handler: Play in App player if video streamable, otherwise launch browser
+    // Unified URL Handler: Play in App player if video streamable or hoster/debrid, otherwise launch browser
     fun handleUrlSelection(url: String?) {
         if (!url.isNullOrBlank()) {
             val trimmed = url.trim()
-            if (trimmed.endsWith(".mp4", ignoreCase = true) ||
-                trimmed.endsWith(".m3u8", ignoreCase = true) ||
-                trimmed.endsWith(".mkv", ignoreCase = true) ||
+            val ext = com.example.network.MediaUrlValidator.mediaExtensionOf(trimmed)
+            if (ext in listOf("mp4", "m3u8", "mkv", "webm", "mpd") ||
                 trimmed.contains("/dash/", ignoreCase = true) ||
-                trimmed.contains(".mpd", ignoreCase = true)
+                trimmed.startsWith("http://", ignoreCase = true) ||
+                trimmed.startsWith("https://", ignoreCase = true)
             ) {
                 onPlay(trimmed)
             } else {

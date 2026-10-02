@@ -1,20 +1,17 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,12 +21,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import com.example.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
+import com.example.network.NetworkClient
+import com.example.network.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.Request
+import org.json.JSONObject
 
 enum class DebridServiceOption(
     val id: String,
@@ -55,18 +59,28 @@ fun IntegrationsDropdownDebridSection(
     onRealDebridKeyChange: (String) -> Unit,
     torboxKey: String,
     onTorboxKeyChange: (String) -> Unit,
+    debridOrder: String = "AUTO",
+    onDebridOrderChange: (String) -> Unit = {},
+    allowUncachedDownloads: Boolean = false,
+    onAllowUncachedChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedService by remember {
         mutableStateOf(
-            if (realDebridKey.isNotBlank() || torboxKey.isBlank()) DebridServiceOption.REAL_DEBRID
-            else DebridServiceOption.TORBOX
+            if (realDebridKey.isNotBlank()) DebridServiceOption.REAL_DEBRID
+            else if (torboxKey.isNotBlank()) DebridServiceOption.TORBOX
+            else DebridServiceOption.REAL_DEBRID
         )
     }
 
     var isDropdownExpanded by remember { mutableStateOf(false) }
+    var isOrderDropdownExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     var showApiKey by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var testStatusMessage by remember { mutableStateOf<String?>(null) }
+    var isTestingConnection by remember { mutableStateOf(false) }
 
     val activeKey = when (selectedService) {
         DebridServiceOption.REAL_DEBRID -> realDebridKey
@@ -74,9 +88,73 @@ fun IntegrationsDropdownDebridSection(
     }
 
     val onActiveKeyChange: (String) -> Unit = { newKey ->
+        testStatusMessage = null
         when (selectedService) {
             DebridServiceOption.REAL_DEBRID -> onRealDebridKeyChange(newKey)
             DebridServiceOption.TORBOX -> onTorboxKeyChange(newKey)
+        }
+    }
+
+    fun testConnection() {
+        val key = activeKey.trim()
+        if (key.isEmpty()) {
+            testStatusMessage = "❌ API key is empty."
+            return
+        }
+
+        isTestingConnection = true
+        testStatusMessage = "Testing connection..."
+
+        coroutineScope.launch {
+            val resultMsg = withContext(Dispatchers.IO) {
+                try {
+                    if (selectedService == DebridServiceOption.REAL_DEBRID) {
+                        val req = Request.Builder()
+                            .url("https://api.real-debrid.com/rest/1.0/user")
+                            .header("Authorization", "Bearer $key")
+                            .build()
+                        val resp = NetworkClient.apiClient.newCall(req).await()
+                        val body = resp.body?.string().orEmpty()
+                        val code = resp.code
+                        resp.close()
+
+                        if (code in 200..299) {
+                            val json = JSONObject(body)
+                            val username = json.optString("username", "User")
+                            val type = json.optString("type", "free")
+                            val expiration = json.optString("expiration", "")
+                            val expDate = if (expiration.length >= 10) expiration.take(10) else ""
+                            "✓ Connected! $username ($type) ${if (expDate.isNotEmpty()) "Expires: $expDate" else ""}"
+                        } else {
+                            "❌ Auth Failed (HTTP $code)"
+                        }
+                    } else {
+                        val req = Request.Builder()
+                            .url("https://api.torbox.app/v1/api/user/me")
+                            .header("Authorization", "Bearer $key")
+                            .build()
+                        val resp = NetworkClient.apiClient.newCall(req).await()
+                        val body = resp.body?.string().orEmpty()
+                        val code = resp.code
+                        resp.close()
+
+                        if (code in 200..299) {
+                            val json = JSONObject(body)
+                            val dataObj = json.optJSONObject("data")
+                            val email = dataObj?.optString("email", "User") ?: "User"
+                            val plan = dataObj?.optInt("plan", 0) ?: 0
+                            val isPremium = plan > 0
+                            "✓ Connected! $email (${if (isPremium) "Premium Plan $plan" else "Free Plan"})"
+                        } else {
+                            "❌ Auth Failed (HTTP $code)"
+                        }
+                    }
+                } catch (e: Exception) {
+                    "❌ Connection error: ${e.message}"
+                }
+            }
+            testStatusMessage = resultMsg
+            isTestingConnection = false
         }
     }
 
@@ -93,7 +171,7 @@ fun IntegrationsDropdownDebridSection(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Debrid Service",
+                    text = "Debrid Service Setup",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
@@ -101,7 +179,7 @@ fun IntegrationsDropdownDebridSection(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // 1. Native Exposed Dropdown Menu Box
+                // Service Dropdown
                 ExposedDropdownMenuBox(
                     expanded = isDropdownExpanded,
                     onExpandedChange = { isDropdownExpanded = !isDropdownExpanded },
@@ -111,15 +189,13 @@ fun IntegrationsDropdownDebridSection(
                         value = selectedService.title,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Select Debrid Service") },
+                        label = { Text("Select Provider") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.Cloud,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .padding(start = 10.dp)
-                                    .size(22.dp)
+                                modifier = Modifier.padding(start = 10.dp).size(22.dp)
                             )
                         },
                         trailingIcon = {
@@ -127,9 +203,7 @@ fun IntegrationsDropdownDebridSection(
                         },
                         shape = RoundedCornerShape(28.dp),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
 
                     ExposedDropdownMenu(
@@ -162,7 +236,7 @@ fun IntegrationsDropdownDebridSection(
                                                 color = Color(0xFF10B981).copy(alpha = 0.15f)
                                             ) {
                                                 Text(
-                                                    text = "Active",
+                                                    text = "Configured",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color(0xFF10B981),
@@ -181,6 +255,7 @@ fun IntegrationsDropdownDebridSection(
                                 },
                                 onClick = {
                                     selectedService = option
+                                    testStatusMessage = null
                                     isDropdownExpanded = false
                                 },
                                 modifier = Modifier
@@ -191,7 +266,7 @@ fun IntegrationsDropdownDebridSection(
                     }
                 }
 
-                // 2. API Key Field with Paste Action & Quick Clear
+                // API Key Field
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -212,7 +287,6 @@ fun IntegrationsDropdownDebridSection(
                         )
                     }
 
-                    // Native Rounded Paste Button
                     FilledTonalButton(
                         onClick = {
                             clipboardManager.getText()?.text?.let { clipboardText ->
@@ -244,9 +318,7 @@ fun IntegrationsDropdownDebridSection(
                             imageVector = Icons.Outlined.Key,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .padding(start = 10.dp)
-                                .size(22.dp)
+                            modifier = Modifier.padding(start = 10.dp).size(22.dp)
                         )
                     },
                     visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
@@ -261,22 +333,42 @@ fun IntegrationsDropdownDebridSection(
                     singleLine = true,
                     maxLines = 1,
                     shape = RoundedCornerShape(28.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("debrid_api_key_input")
+                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("debrid_api_key_input")
                 )
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp),
-                    contentAlignment = Alignment.CenterStart
+                // Test Connection Action
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (activeKey.isNotBlank()) "✓ Connected and saved" else selectedService.tokenUrlHint,
-                        color = if (activeKey.isNotBlank()) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
+                        text = selectedService.tokenUrlHint,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    OutlinedButton(
+                        onClick = { testConnection() },
+                        enabled = activeKey.isNotBlank() && !isTestingConnection,
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        if (isTestingConnection) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text("Test Connection", fontSize = 12.sp)
+                    }
+                }
+
+                if (testStatusMessage != null) {
+                    Text(
+                        text = testStatusMessage!!,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (testStatusMessage!!.startsWith("✓")) Color(0xFF10B981) else MaterialTheme.colorScheme.error
                     )
                 }
 
@@ -292,6 +384,92 @@ fun IntegrationsDropdownDebridSection(
                             Text("Clear Token", fontSize = 13.sp)
                         }
                     }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // Provider Order Selection
+                Text(
+                    text = "Provider Priority Order",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = isOrderDropdownExpanded,
+                    onExpandedChange = { isOrderDropdownExpanded = !isOrderDropdownExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val orderLabel = when (debridOrder) {
+                        "REAL_DEBRID_FIRST" -> "Real-Debrid First"
+                        "TORBOX_FIRST" -> "Torbox First"
+                        else -> "Auto (Cache Check -> Instant Stream)"
+                    }
+
+                    OutlinedTextField(
+                        value = orderLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Priority Strategy") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Speed,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 10.dp).size(22.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOrderDropdownExpanded)
+                        },
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isOrderDropdownExpanded,
+                        onDismissRequest = { isOrderDropdownExpanded = false },
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Auto (Cache Check -> Instant Stream)") },
+                            onClick = { onDebridOrderChange("AUTO"); isOrderDropdownExpanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Real-Debrid First") },
+                            onClick = { onDebridOrderChange("REAL_DEBRID_FIRST"); isOrderDropdownExpanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Torbox First") },
+                            onClick = { onDebridOrderChange("TORBOX_FIRST"); isOrderDropdownExpanded = false }
+                        )
+                    }
+                }
+
+                // Allow Uncached Downloads Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Allow Uncached Cloud Downloads",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "If enabled, non-cached torrents will download to cloud account.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Switch(
+                        checked = allowUncachedDownloads,
+                        onCheckedChange = onAllowUncachedChange
+                    )
                 }
             }
         }

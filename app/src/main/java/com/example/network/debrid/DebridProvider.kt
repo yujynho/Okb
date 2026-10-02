@@ -1,5 +1,25 @@
 package com.example.network.debrid
 
+enum class DebridErrorType {
+    InvalidKey,
+    NotPremium,
+    NotCached,
+    Timeout,
+    RateLimited,
+    Infringing,
+    AccountLimit,
+    FileNotFound,
+    Network,
+    Unsupported,
+    Unknown
+}
+
+enum class CacheState {
+    CACHED,
+    NOT_CACHED,
+    UNKNOWN
+}
+
 sealed class DebridResult {
     data class Success(
         val streamUrl: String,
@@ -10,15 +30,17 @@ sealed class DebridResult {
     ) : DebridResult()
 
     data class Error(
+        val type: DebridErrorType = DebridErrorType.Unknown,
         val message: String,
         val statusCode: Int? = null,
-        val providerName: String
+        val providerName: String,
+        val retryable: Boolean = false
     ) : DebridResult()
 }
 
 interface DebridProvider {
     val name: String
     fun isConfigured(): Boolean
-    suspend fun checkCache(hash: String): Boolean
-    suspend fun resolveStream(magnetOrQuery: String): DebridResult
+    suspend fun checkCache(hash: String): CacheState
+    suspend fun resolveStream(magnetOrQuery: String, allowUncached: Boolean = false): DebridResult
 }

@@ -10,7 +10,7 @@ sealed class ValidatedMediaResult {
     data class Valid(
         val finalUrl: String,
         val mimeType: String?,
-        val detectedFormat: String, // "MP4", "HLS", "DASH", "MKV"
+        val detectedFormat: String, // "MP4", "HLS", "DASH", "MKV", "WEBM"
         val httpStatusCode: Int,
         val contentLength: Long?,
         val headers: Map<String, String>
@@ -24,6 +24,18 @@ sealed class ValidatedMediaResult {
 
 object MediaUrlValidator {
     private const val TAG = "MediaUrlValidator"
+
+    fun mediaExtensionOf(url: String): String {
+        try {
+            val uri = URI(url)
+            val path = uri.path ?: return ""
+            val lastDot = path.lastIndexOf('.')
+            if (lastDot != -1 && lastDot < path.length - 1) {
+                return path.substring(lastDot + 1).lowercase()
+            }
+        } catch (_: Exception) {}
+        return ""
+    }
 
     suspend fun validate(
         rawUrl: String,
@@ -51,43 +63,48 @@ object MediaUrlValidator {
             return@withContext ValidatedMediaResult.Invalid("Malformed media URL: ${e.message}")
         }
 
-        val lowerUrl = trimmed.lowercase()
+        val ext = mediaExtensionOf(trimmed)
         val defaultFormat = when {
-            lowerUrl.contains(".mpd") -> "DASH"
-            lowerUrl.contains(".m3u8") -> "HLS"
-            lowerUrl.contains(".mkv") -> "MKV"
-            lowerUrl.contains(".webm") -> "WEBM"
+            ext == "mpd" || trimmed.contains(".mpd") -> "DASH"
+            ext == "m3u8" || trimmed.contains(".m3u8") -> "HLS"
+            ext == "mkv" -> "MKV"
+            ext == "webm" -> "WEBM"
             else -> "MP4"
         }
 
-        // Lightweight network probe: exploratory only, not blocking playback
         try {
             val reqBuilder = Request.Builder()
                 .url(trimmed)
-                .header(
-                    "User-Agent",
-                    customHeaders["User-Agent"]
-                        ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                )
-                .header("Accept", "*/*")
+                .header("Range", "bytes=0-1")
 
             customHeaders.forEach { (k, v) ->
-                if (!k.equals("User-Agent", ignoreCase = true)) {
-                    reqBuilder.header(k, v)
-                }
+                reqBuilder.header(k, v)
             }
 
-            // Use HEAD or GET with small range
-            reqBuilder.header("Range", "bytes=0-1024")
-
-            val response = NetworkClient.okHttpClient.newCall(reqBuilder.build()).execute()
+            val response = NetworkClient.apiClient.newCall(reqBuilder.build()).await()
             val code = response.code
             val finalUrl = response.request.url.toString()
             val contentType = response.header("Content-Type")?.lowercase()
             val contentLength = response.header("Content-Length")?.toLongOrNull()
             response.close()
 
-            Log.d(TAG, "[VALIDATOR] Probed stream URL: code=$code, type=$contentType, finalUrl=$finalUrl")
+            Log.d(TAG, "[VALIDATOR] Probed stream URL: code=$code, type=$contentType")
+
+            // Handle HTTP Error status codes
+            if (code in listOf(401, 403, 404, 410, 429) || code >= 500) {
+                return@withContext ValidatedMediaResult.Invalid(
+                    reason = "Server returned HTTP $code error",
+                    httpStatusCode = code
+                )
+            }
+
+            // Reject HTML / JSON error pages
+            if (contentType != null && (contentType.contains("text/html") || contentType.contains("application/json"))) {
+                return@withContext ValidatedMediaResult.Invalid(
+                    reason = "URL returned invalid media response ($contentType)",
+                    httpStatusCode = code
+                )
+            }
 
             val format = when {
                 defaultFormat == "DASH" || contentType?.contains("dash+xml") == true -> "DASH"
@@ -106,6 +123,7 @@ object MediaUrlValidator {
                 headers = customHeaders
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(TAG, "Network probe warning for $trimmed: ${e.message}. Proceeding with stream playback.")
             return@withContext ValidatedMediaResult.Valid(
                 finalUrl = trimmed,

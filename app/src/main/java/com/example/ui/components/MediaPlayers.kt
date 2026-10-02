@@ -217,16 +217,7 @@ fun ExoPlayerOverlay(
 
     val fallbackPlayer = remember(context) {
         if (exoPlayer == null) {
-            val loadControl = DefaultLoadControl.Builder()
-                .setBufferDurationsMs(10_000, 45_000, 500, 1_000)
-                .setPrioritizeTimeOverSizeThresholds(true)
-                .build()
-            val renderersFactory = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
-            ExoPlayer.Builder(context, renderersFactory)
-                .setLoadControl(loadControl)
-                .setSeekBackIncrementMs(10_000)
-                .setSeekForwardIncrementMs(10_000)
-                .build().apply { playWhenReady = true }
+            PlayerFactory.createPlayer(context)
         } else null
     }
     val activeExoPlayer = exoPlayer ?: fallbackPlayer!!
@@ -360,42 +351,10 @@ fun ExoPlayerOverlay(
     fun openInExternalPlayer() {
         val streamUrl = selectedQuality?.url?.trim() ?: qualities.firstOrNull()?.url?.trim()
         if (!streamUrl.isNullOrBlank()) {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(streamUrl), "video/*")
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-                }
-                context.startActivity(Intent.createChooser(intent, "Play with..."))
-            } catch (e: Exception) {
-                Toast.makeText(context, "No external player found: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
+            PlayerFactory.openInExternalPlayer(context, streamUrl, title, activeHeaders)
         } else {
             Toast.makeText(context, "No video stream URL available", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    val exoPlayer = remember(context) {
-        // High performance LoadControl: Instant playback startup (500ms), deep buffer for smooth streaming
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                /* minBufferMs = */ 10_000,
-                /* maxBufferMs = */ 45_000,
-                /* bufferForPlaybackMs = */ 500,
-                /* bufferForPlaybackAfterRebufferMs = */ 1_000
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
-
-        val renderersFactory = DefaultRenderersFactory(context)
-            .setEnableDecoderFallback(true)
-
-        ExoPlayer.Builder(context, renderersFactory)
-            .setLoadControl(loadControl)
-            .setSeekBackIncrementMs(10_000)
-            .setSeekForwardIncrementMs(10_000)
-            .build().apply {
-                playWhenReady = true
-            }
     }
 
     DisposableEffect(activeExoPlayer) {
@@ -1122,7 +1081,7 @@ fun ExoPlayerOverlay(
                                                 val finalTarget = (scrubProgress * duration).toLong()
                                                 currentPos = finalTarget
                                                 lastSeekTime = System.currentTimeMillis()
-                                                exoPlayer.seekTo(finalTarget)
+                                                activeExoPlayer.seekTo(finalTarget)
                                                 isScrubbing = false
                                                 break
                                             }

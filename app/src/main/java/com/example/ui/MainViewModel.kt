@@ -101,16 +101,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.deleteLinkById(it.id)
             }
 
-            // Ensure Real-Debrid and StashDB API Keys are populated with the requested default keys if currently empty
+            // Seed default API Keys ONLY ONCE on first install using defaultKeysSeeded flag
             val currentSett = repository.settings.first() ?: SettingsEntity()
-            var updatedSett = currentSett
-            if (updatedSett.realDebridApiKey.isBlank()) {
-                updatedSett = updatedSett.copy(realDebridApiKey = "HNR2RHUY4K6JYXNFJCB4QXAJ57TKDQKTQOPYEXZ2VANQO7TN5YJQ")
-            }
-            if (updatedSett.stashDbApiKey.isBlank()) {
-                updatedSett = updatedSett.copy(stashDbApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIwMTlmYmRlYi00MDRlLTdjYmMtOTFhNy00YTA4MjhjMTQ5ZjQiLCJzdWIiOiJBUElLZXkiLCJpYXQiOjE3ODU1OTc3Mzl9.J9ojzjsBP8sBOLZNUACF94EWwren89ql8TDcW3gT7WY")
-            }
-            if (updatedSett != currentSett) {
+            if (!currentSett.defaultKeysSeeded) {
+                var updatedSett = currentSett.copy(defaultKeysSeeded = true)
+                if (updatedSett.realDebridApiKey.isBlank()) {
+                    updatedSett = updatedSett.copy(realDebridApiKey = com.example.data.TestDefaults.RD_KEY)
+                }
+                if (updatedSett.stashDbApiKey.isBlank()) {
+                    updatedSett = updatedSett.copy(stashDbApiKey = com.example.data.TestDefaults.STASHDB_KEY)
+                }
                 repository.updateSettings(updatedSett)
             }
 
@@ -238,19 +238,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         resolveVideoJob = viewModelScope.launch {
-            _resolvingVideoStatus.value = if (trimmed.startsWith("magnet:", ignoreCase = true) || trimmed.matches(Regex("^[a-fA-F0-9]{40}$"))) {
-                "Resolving stream..."
+            _resolvingVideoStatus.value = if (com.example.network.torrent.MagnetParser.parseHash(trimmed) != null) {
+                "Resolving torrent magnet via Debrid..."
             } else {
-                "Resolving stream..."
+                "Resolving media stream..."
             }
 
             try {
                 val settings = repository.getSettingsOnce()
-                val resolved = VideoResolvers.resolve(
-                    rawUrl = trimmed,
-                    torboxApiKey = settings.torboxApiKey,
-                    realDebridApiKey = settings.realDebridApiKey
-                )
+                val orderEnum = when (settings.debridOrder) {
+                    "REAL_DEBRID_FIRST" -> com.example.network.debrid.DebridOrder.REAL_DEBRID_FIRST
+                    "TORBOX_FIRST" -> com.example.network.debrid.DebridOrder.TORBOX_FIRST
+                    else -> com.example.network.debrid.DebridOrder.AUTO
+                }
+
+                val resolved = kotlinx.coroutines.withTimeout(45_000L) {
+                    VideoResolvers.resolve(
+                        rawUrl = trimmed,
+                        torboxApiKey = settings.torboxApiKey,
+                        realDebridApiKey = settings.realDebridApiKey,
+                        debridOrder = orderEnum,
+                        allowUncached = settings.allowUncachedDownloads
+                    )
+                }
 
                 if (resolved.qualities.isEmpty()) {
                     _videoResolutionError.value = "No playable media qualities found for this source."

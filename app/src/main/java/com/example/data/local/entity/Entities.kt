@@ -3,6 +3,7 @@ package com.example.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
+import com.example.data.TestDefaults
 import com.example.data.local.converters.RoomConverters
 
 @Entity(tableName = "links")
@@ -66,8 +67,8 @@ data class SettingsEntity(
     val currentTheme: String = "Dark",
     val accentColorHex: String = "tokyo_night", // Tokyo Night default
     val torboxApiKey: String = "",
-    val realDebridApiKey: String = "HNR2RHUY4K6JYXNFJCB4QXAJ57TKDQKTQOPYEXZ2VANQO7TN5YJQ",
-    val stashDbApiKey: String = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIwMTlmYmRlYi00MDRlLTdjYmMtOTFhNy00YTA4MjhjMTQ5ZjQiLCJzdWIiOiJBUElLZXkiLCJpYXQiOjE3ODU1OTc3Mzl9.J9ojzjsBP8sBOLZNUACF94EWwren89ql8TDcW3gT7WY",
+    val realDebridApiKey: String = TestDefaults.RD_KEY,
+    val stashDbApiKey: String = TestDefaults.STASHDB_KEY,
     val geminiApiKey: String = "",
     val blurCovers: Boolean = false,
     val betaTestPrivacy: Boolean = false,
@@ -76,5 +77,8 @@ data class SettingsEntity(
     val appIconStyle: Int = 0,
     val enableVideoPlayerGestures: Boolean = true,
     val transitionStyle: Int = 0,
-    val lastSyncTime: Long = 0L
+    val lastSyncTime: Long = 0L,
+    val defaultKeysSeeded: Boolean = false,
+    val allowUncachedDownloads: Boolean = false,
+    val debridOrder: String = "AUTO" // "AUTO", "REAL_DEBRID_FIRST", "TORBOX_FIRST"
 )

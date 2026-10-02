@@ -1,18 +1,44 @@
 package com.example.network.debrid
 
 import android.util.Log
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import java.util.concurrent.ConcurrentHashMap
+
+enum class DebridOrder {
+    AUTO,
+    REAL_DEBRID_FIRST,
+    TORBOX_FIRST
+}
+
+data class CachedStream(
+    val result: DebridResult.Success,
+    val timestampMs: Long = System.currentTimeMillis()
+)
 
 class DebridManager(
     private val torboxKeyProvider: () -> String,
-    private val realDebridKeyProvider: () -> String
+    private val realDebridKeyProvider: () -> String,
+    private val debridOrderProvider: () -> DebridOrder = { DebridOrder.AUTO },
+    private val allowUncachedProvider: () -> Boolean = { false }
 ) {
     private val tag = "DebridManager"
 
     val torboxProvider = TorboxProvider(torboxKeyProvider)
     val realDebridProvider = RealDebridProvider(realDebridKeyProvider)
+
+    companion object {
+        private val resolvedStreamCache = ConcurrentHashMap<String, CachedStream>()
+        private const val CACHE_TTL_MS = 20 * 60 * 1000L // 20 minutes
+
+        fun invalidateCache(key: String?) {
+            if (!key.isNullOrBlank()) {
+                resolvedStreamCache.remove(key.lowercase().trim())
+            }
+        }
+    }
 
     fun hasAnyProviderConfigured(): Boolean {
         return torboxProvider.isConfigured() || realDebridProvider.isConfigured()
@@ -21,71 +47,81 @@ class DebridManager(
     suspend fun resolve(queryOrMagnet: String): DebridResult = coroutineScope {
         val torboxConfigured = torboxProvider.isConfigured()
         val rdConfigured = realDebridProvider.isConfigured()
+        val allowUncached = allowUncachedProvider()
+        val order = debridOrderProvider()
 
         if (!torboxConfigured && !rdConfigured) {
             return@coroutineScope DebridResult.Error(
-                message = "No Debrid provider is configured. Please add your Torbox or Real-Debrid API key in Settings.",
+                type = DebridErrorType.InvalidKey,
+                message = "No Debrid provider is configured. Please add your API key in Settings.",
                 providerName = "None"
             )
         }
 
-        // If only one provider is configured, execute directly without extra overhead
+        val cacheKey = queryOrMagnet.trim().lowercase()
+        val cached = resolvedStreamCache[cacheKey]
+        if (cached != null && (System.currentTimeMillis() - cached.timestampMs < CACHE_TTL_MS)) {
+            Log.d(tag, "Returning cached Debrid stream for: $cacheKey")
+            return@coroutineScope cached.result
+        }
+
+        val result = executeResolution(queryOrMagnet, torboxConfigured, rdConfigured, order, allowUncached)
+
+        if (result is DebridResult.Success) {
+            resolvedStreamCache[cacheKey] = CachedStream(result)
+        }
+
+        return@coroutineScope result
+    }
+
+    private suspend fun executeResolution(
+        queryOrMagnet: String,
+        torboxConfigured: Boolean,
+        rdConfigured: Boolean,
+        order: DebridOrder,
+        allowUncached: Boolean
+    ): DebridResult = coroutineScope {
         if (torboxConfigured && !rdConfigured) {
-            Log.d(tag, "Resolving via Torbox (single configured provider)...")
-            return@coroutineScope torboxProvider.resolveStream(queryOrMagnet)
+            return@coroutineScope torboxProvider.resolveStream(queryOrMagnet, allowUncached)
         }
         if (!torboxConfigured && rdConfigured) {
-            Log.d(tag, "Resolving via Real-Debrid (single configured provider)...")
-            return@coroutineScope realDebridProvider.resolveStream(queryOrMagnet)
+            return@coroutineScope realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
         }
 
-        // Both are configured: Ultra-Fast Concurrent Racing
-        // Execute both providers in parallel and return the first success immediately
-        Log.d(tag, "Concurrent Debrid Racing: Resolving via Torbox & Real-Debrid simultaneously...")
-        val resultChannel = Channel<DebridResult>(capacity = Channel.BUFFERED)
-
-        val jobTorbox = launch {
-            try {
-                val res = torboxProvider.resolveStream(queryOrMagnet)
-                resultChannel.send(res)
-            } catch (e: Exception) {
-                resultChannel.send(DebridResult.Error(e.message ?: "Torbox failed", null, "Torbox"))
+        when (order) {
+            DebridOrder.REAL_DEBRID_FIRST -> {
+                val rdRes = realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
+                if (rdRes is DebridResult.Success) return@coroutineScope rdRes
+                return@coroutineScope torboxProvider.resolveStream(queryOrMagnet, allowUncached)
             }
-        }
-
-        val jobRd = launch {
-            try {
-                val res = realDebridProvider.resolveStream(queryOrMagnet)
-                resultChannel.send(res)
-            } catch (e: Exception) {
-                resultChannel.send(DebridResult.Error(e.message ?: "Real-Debrid failed", null, "Real-Debrid"))
+            DebridOrder.TORBOX_FIRST -> {
+                val torRes = torboxProvider.resolveStream(queryOrMagnet, allowUncached)
+                if (torRes is DebridResult.Success) return@coroutineScope torRes
+                return@coroutineScope realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
             }
-        }
-
-        var firstError: DebridResult.Error? = null
-        var completedCount = 0
-
-        while (completedCount < 2) {
-            val result = resultChannel.receive()
-            completedCount++
-
-            if (result is DebridResult.Success) {
-                // Cancel the slower/pending job immediately
-                jobTorbox.cancel()
-                jobRd.cancel()
-                Log.d(tag, "Speed Race WON by ${result.providerName}!")
-                return@coroutineScope result
-            } else if (result is DebridResult.Error) {
-                if (firstError == null) {
-                    firstError = result
+            DebridOrder.AUTO -> {
+                // AUTO: Check Torbox cache first (zero side-effects)
+                val torboxCache = torboxProvider.checkCache(queryOrMagnet)
+                if (torboxCache == CacheState.CACHED) {
+                    val torRes = torboxProvider.resolveStream(queryOrMagnet, allowUncached)
+                    if (torRes is DebridResult.Success) return@coroutineScope torRes
                 }
+
+                // Try Real-Debrid
+                val rdRes = realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
+                if (rdRes is DebridResult.Success) return@coroutineScope rdRes
+
+                // Fallback to Torbox
+                val torRes = torboxProvider.resolveStream(queryOrMagnet, allowUncached)
+                if (torRes is DebridResult.Success) return@coroutineScope torRes
+
+                val errorMsg = "Resolution failed. RD: ${(rdRes as? DebridResult.Error)?.message} | Torbox: ${(torRes as? DebridResult.Error)?.message}"
+                return@coroutineScope DebridResult.Error(
+                    type = (rdRes as? DebridResult.Error)?.type ?: DebridErrorType.Unknown,
+                    message = errorMsg,
+                    providerName = "Debrid"
+                )
             }
         }
-
-        return@coroutineScope firstError ?: DebridResult.Error(
-            message = "Failed to resolve stream with configured Debrid providers",
-            providerName = "Debrid"
-        )
     }
 }
-

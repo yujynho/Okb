@@ -9,6 +9,12 @@ import okhttp3.Response
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
+import java.io.IOException
+import kotlin.coroutines.resumeWithException
+
 object NetworkClient {
     private val cookieStore = ConcurrentHashMap<String, MutableList<Cookie>>()
 
@@ -64,15 +70,72 @@ object NetworkClient {
             .build()
     }
 
+    /**
+     * Dedicated clean API client for debrid and REST API requests (no browser headers interceptor).
+     */
+    val apiClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(inMemoryCookieJar)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(false)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val builder = original.newBuilder()
+                if (original.header("User-Agent") == null) {
+                    builder.header("User-Agent", "Okb/1.0 (Android)")
+                }
+                if (original.header("Accept") == null) {
+                    builder.header("Accept", "application/json")
+                }
+                chain.proceed(builder.build())
+            }
+            .build()
+    }
+
     suspend fun getHtml(url: String, headers: Map<String, String> = emptyMap()): String {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val reqBuilder = Request.Builder().url(url)
             headers.forEach { (k, v) -> reqBuilder.header(k, v) }
-            val response: Response = okHttpClient.newCall(reqBuilder.build()).execute()
+            val response: Response = okHttpClient.newCall(reqBuilder.build()).await()
             if (!response.isSuccessful && response.code !in 300..399) {
-                throw Exception("HTTP ${response.code}: ${response.message}")
+                val code = response.code
+                val msg = response.message
+                response.close()
+                throw Exception("HTTP $code: $msg")
             }
-            response.body?.string() ?: ""
+            val bodyStr = response.body?.string() ?: ""
+            response.close()
+            bodyStr
+        }
+    }
+}
+
+/**
+     * Non-blocking, cancellable suspend extension for OkHttp Call execution.
+     */
+suspend fun Call.await(): Response {
+    return suspendCancellableCoroutine { continuation ->
+        enqueue(object : Callback {
+            override fun onResponse(call: Call, response: Response) {
+                continuation.resume(response) {
+                    try { response.close() } catch (_: Throwable) {}
+                }
+            }
+
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isCancelled) return
+                continuation.resumeWithException(e)
+            }
+        })
+
+        continuation.invokeOnCancellation {
+            try {
+                cancel()
+            } catch (_: Throwable) {}
         }
     }
 }

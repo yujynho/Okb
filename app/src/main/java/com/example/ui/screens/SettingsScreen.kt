@@ -246,6 +246,14 @@ fun SettingsScreen(
                             onTorboxKeyChange = {
                                 torboxKey = it
                                 viewModel.updateSettings(currentSettings.copy(torboxApiKey = it.trim()))
+                            },
+                            debridOrder = currentSettings.debridOrder,
+                            onDebridOrderChange = {
+                                viewModel.updateSettings(currentSettings.copy(debridOrder = it))
+                            },
+                            allowUncachedDownloads = currentSettings.allowUncachedDownloads,
+                            onAllowUncachedChange = {
+                                viewModel.updateSettings(currentSettings.copy(allowUncachedDownloads = it))
                             }
                         )
 

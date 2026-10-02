@@ -2,14 +2,16 @@ package com.example.network
 
 import android.util.Log
 import com.example.network.debrid.DebridManager
+import com.example.network.debrid.DebridOrder
 import com.example.network.debrid.DebridResult
+import com.example.network.torrent.MagnetParser
 import org.json.JSONObject
 import java.util.regex.Pattern
 
 data class StreamQuality(
-    val quality: String, // "4K", "1080p60", "1080p", "720p", "Auto"
+    val quality: String, // "4K", "1080p60", "1080p", "720p", "Auto", "Source"
     val url: String,
-    val format: String = "MP4", // "MP4", "HLS", "DASH"
+    val format: String = "MP4", // "MP4", "HLS", "DASH", "MKV", "WEBM"
     val isDefault: Boolean = false,
     val headers: Map<String, String> = emptyMap()
 )
@@ -32,7 +34,7 @@ object VideoResolvers {
     private const val TAG = "VideoResolvers"
 
     private const val DEFAULT_BROWSER_UA =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
     private fun imul(a: Int, b: Int): Int = a * b
 
@@ -47,10 +49,8 @@ object VideoResolvers {
         }
         val len = trimmed.length
         if (len < 32 || (len and 1) != 0) return null
-        // 40-character hex is a torrent info_hash, not an xHamster encrypted payload
-        if (len == 40 && trimmed.matches(Regex("^[a-fA-F0-9]{40}$"))) return null
+        if (MagnetParser.parseHash(trimmed) != null) return null
 
-        // Must strictly consist of valid hexadecimal characters
         for (i in 0 until len) {
             val c = trimmed[i]
             if (!((c in '0'..'9') || (c in 'a'..'f') || (c in 'A'..'F'))) {
@@ -157,26 +157,46 @@ object VideoResolvers {
 
     // 3. Debrid Resolver (Torbox & Real-Debrid)
     suspend fun resolveDebrid(
-        magnetOrHash: String,
+        queryOrMagnet: String,
         torboxApiKey: String,
-        realDebridApiKey: String
+        realDebridApiKey: String,
+        debridOrder: DebridOrder = DebridOrder.AUTO,
+        allowUncached: Boolean = false
     ): ResolvedVideo {
         val debridManager = DebridManager(
             torboxKeyProvider = { torboxApiKey },
-            realDebridKeyProvider = { realDebridApiKey }
+            realDebridKeyProvider = { realDebridApiKey },
+            debridOrderProvider = { debridOrder },
+            allowUncachedProvider = { allowUncached }
         )
 
-        val result = debridManager.resolve(magnetOrHash)
+        val result = debridManager.resolve(queryOrMagnet)
         when (result) {
             is DebridResult.Success -> {
-                val filename = result.filename ?: "Debrid Cloud Stream"
+                val filename = result.filename ?: "Debrid Stream"
+                val ext = MediaUrlValidator.mediaExtensionOf(filename)
+                val format = when (ext) {
+                    "mkv" -> "MKV"
+                    "webm" -> "WEBM"
+                    "m3u8" -> "HLS"
+                    "mpd" -> "DASH"
+                    else -> "MP4"
+                }
+
+                val qualityLabel = when {
+                    filename.contains("2160p", ignoreCase = true) || filename.contains("4k", ignoreCase = true) -> "4K Stream"
+                    filename.contains("1080p", ignoreCase = true) -> "1080p Stream"
+                    filename.contains("720p", ignoreCase = true) -> "720p Stream"
+                    else -> "Source Stream"
+                }
+
                 return ResolvedVideo(
                     title = filename,
                     qualities = listOf(
                         StreamQuality(
-                            quality = "1080p Stream",
+                            quality = qualityLabel,
                             url = result.streamUrl,
-                            format = "MP4",
+                            format = format,
                             isDefault = true,
                             headers = result.headers
                         )
@@ -190,23 +210,31 @@ object VideoResolvers {
         }
     }
 
-    // 5. General Master Resolver
+    private fun isHosterUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        val hosterDomains = listOf("1fichier.com", "rapidgator.net", "mega.nz", "turbobit.net", "uploaded.net", "uptobox.com")
+        return hosterDomains.any { lower.contains(it) }
+    }
+
+    // 4. General Master Resolver
     suspend fun resolve(
         rawUrl: String,
         torboxApiKey: String = "",
-        realDebridApiKey: String = ""
+        realDebridApiKey: String = "",
+        debridOrder: DebridOrder = DebridOrder.AUTO,
+        allowUncached: Boolean = false
     ): ResolvedVideo {
         val trimmed = rawUrl.trim()
 
-        if (trimmed.startsWith("magnet:", ignoreCase = true) || trimmed.matches(Regex("^[a-fA-F0-9]{40}$"))) {
-            return resolveDebrid(trimmed, torboxApiKey, realDebridApiKey)
+        if (MagnetParser.parseHash(trimmed) != null || isHosterUrl(trimmed)) {
+            return resolveDebrid(trimmed, torboxApiKey, realDebridApiKey, debridOrder, allowUncached)
         }
 
         val decoded = decodeXhamsterUrl(trimmed) ?: trimmed
 
         return when {
-            decoded.startsWith("magnet:", ignoreCase = true) || decoded.matches(Regex("^[a-fA-F0-9]{40}$")) -> {
-                resolveDebrid(decoded, torboxApiKey, realDebridApiKey)
+            MagnetParser.parseHash(decoded) != null || isHosterUrl(decoded) -> {
+                resolveDebrid(decoded, torboxApiKey, realDebridApiKey, debridOrder, allowUncached)
             }
             decoded.contains("pornhub.com", ignoreCase = true) -> {
                 resolvePornhub(decoded)
@@ -219,9 +247,15 @@ object VideoResolvers {
             }
             else -> {
                 val headers = mapOf("User-Agent" to DEFAULT_BROWSER_UA)
+                val ext = MediaUrlValidator.mediaExtensionOf(decoded)
+                val format = when (ext) {
+                    "mkv" -> "MKV"
+                    "webm" -> "WEBM"
+                    else -> "MP4"
+                }
                 ResolvedVideo(
                     "Media Stream",
-                    listOf(StreamQuality("Direct 1080p", decoded, "MP4", true, headers = headers)),
+                    listOf(StreamQuality("Direct Stream", decoded, format, true, headers = headers)),
                     headers = headers
                 )
             }

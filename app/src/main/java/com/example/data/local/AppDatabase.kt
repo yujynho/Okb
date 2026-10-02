@@ -16,7 +16,7 @@ import com.example.data.local.entity.*
         StudioEntity::class,
         SettingsEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
