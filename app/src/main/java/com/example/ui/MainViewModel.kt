@@ -38,6 +38,15 @@ enum class StashSearchType {
     STUDIO
 }
 
+enum class SettingsSection {
+    MAIN_MENU,
+    DISPLAY,
+    PRIVACY, // ORG-NEW
+    INTEGRATIONS,
+    DATA_BACKUP,
+    SAMPLE_DATA
+}
+
 sealed class ScreenState {
     object Home : ScreenState()
     object Bookmarks : ScreenState()

@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -28,11 +30,13 @@ import com.example.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.entity.SettingsEntity
 import com.example.ui.MainViewModel
+import com.example.ui.SettingsSection
 import com.example.ui.components.ColorPalettePicker
 import com.example.ui.components.DataBackupSection
 import com.example.ui.components.IntegrationsDropdownDebridSection
@@ -41,15 +45,6 @@ import com.example.ui.components.NativeTransitionSelector
 import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalVaultPalette
 import kotlinx.coroutines.launch
-
-// ORG-FIX: Removed orphaned PRIVACY and ADVANCED sections (streamlined to 5 sections)
-private enum class SettingsSection {
-    MAIN_MENU,
-    DISPLAY,
-    INTEGRATIONS,
-    DATA_BACKUP,
-    SAMPLE_DATA
-}
 
 /**
  * MUSE-REF: Switch colors matching the exact visual reference:
@@ -136,8 +131,9 @@ private fun SettingsNavigationChevron() {
 }
 
 /**
- * MUSE-REF: Standard Setting Row Composable:
+ * MUSE-REF: Standard Setting Row Composable with optional leading icon:
  * Padding: vertical = 18.dp, horizontal = 20.dp
+ * Icon: Optional 44dp circular container with 22dp accent icon
  * Title: 16sp, FontWeight.Medium, color = palette.textPrimary
  * Subtitle: 13sp, color = palette.textSecondary
  * Trailing: Switch or chevron in palette.textMuted
@@ -147,10 +143,12 @@ private fun SettingsNavigationChevron() {
 private fun SettingsRow(
     title: String,
     subtitle: String? = null,
+    icon: Painter? = null, // ORG-NEW: Added icon parameter for iOS-style root categories
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     val palette = LocalVaultPalette.current
+    val accent = LocalAccentColor.current
     val rowModifier = if (onClick != null) {
         Modifier
             .fillMaxWidth()
@@ -167,28 +165,50 @@ private fun SettingsRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = if (trailing != null) 12.dp else 0.dp)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 16.sp, // MUSE-REF
-                    fontWeight = FontWeight.Medium // MUSE-REF
-                ),
-                color = palette.textPrimary // MUSE-REF
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
+            if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp) // ORG-NEW: 44dp circular background
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = icon,
+                        contentDescription = null,
+                        tint = accent, // ORG-NEW: Accent color
+                        modifier = Modifier.size(22.dp) // ORG-NEW: 22dp icon
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = if (trailing != null) 12.dp else 0.dp)
+            ) {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp // MUSE-REF
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp, // MUSE-REF
+                        fontWeight = FontWeight.Medium // MUSE-REF
                     ),
-                    color = palette.textSecondary // MUSE-REF
+                    color = palette.textPrimary // MUSE-REF
                 )
+                if (!subtitle.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp // MUSE-REF
+                        ),
+                        color = palette.textSecondary // MUSE-REF
+                    )
+                }
             }
         }
 
@@ -207,6 +227,7 @@ fun SettingsScreen(
     val palette = LocalVaultPalette.current
     val accent = LocalAccentColor.current
     val clipboardManager = LocalClipboardManager.current
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
 
     val currentSettingsRaw by viewModel.settings.collectAsStateWithLifecycle()
     val currentSettings = currentSettingsRaw ?: SettingsEntity()
@@ -222,6 +243,7 @@ fun SettingsScreen(
     val initialSection = remember {
         val sec = when (viewModel.initialSettingsSection) {
             "DISPLAY" -> SettingsSection.DISPLAY
+            "PRIVACY" -> SettingsSection.PRIVACY // ORG-NEW
             "INTEGRATIONS" -> SettingsSection.INTEGRATIONS
             "DATA_BACKUP" -> SettingsSection.DATA_BACKUP
             "SAMPLE_DATA" -> SettingsSection.SAMPLE_DATA
@@ -240,6 +262,7 @@ fun SettingsScreen(
     val screenTitle = when (currentSection) {
         SettingsSection.MAIN_MENU -> "Settings"
         SettingsSection.DISPLAY -> "Display"
+        SettingsSection.PRIVACY -> "Privacy" // ORG-NEW
         SettingsSection.INTEGRATIONS -> "Integrations"
         SettingsSection.DATA_BACKUP -> "Data & Backup"
         SettingsSection.SAMPLE_DATA -> "Sample Data"
@@ -324,17 +347,12 @@ fun SettingsScreen(
         ) { section ->
             when (section) {
                 SettingsSection.MAIN_MENU -> {
+                    // ORG-FIX: Clean signature with only onNavigateTo
                     SettingsMainMenu(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState()),
-                        viewModel = viewModel, // ORG-FIX: Direct viewModel interaction, removing dead lambda proxies
-                        currentSettings = currentSettings,
-                        themeName = themeName,
-                        accentHex = accentHex,
-                        stashDbKey = stashDbKey,
-                        rdKeyConfigured = rdKey.isNotBlank() || torboxKey.isNotBlank(),
                         onNavigateTo = { currentSection = it }
                     )
                 }
@@ -355,6 +373,10 @@ fun SettingsScreen(
                             accentHex = it
                             saveAllSettings()
                         },
+                        showManagementCards = currentSettings.showManagementCards, // ORG-MOVED: Single source in Display
+                        onShowManagementCardsChange = {
+                            viewModel.updateSettings(currentSettings.copy(showManagementCards = it))
+                        },
                         appIconStyle = currentSettings.appIconStyle,
                         onAppIconStyleChange = {
                             viewModel.updateSettings(currentSettings.copy(appIconStyle = it))
@@ -362,6 +384,20 @@ fun SettingsScreen(
                         transitionStyle = currentSettings.transitionStyle,
                         onTransitionStyleChange = {
                             viewModel.updateSettings(currentSettings.copy(transitionStyle = it))
+                        }
+                    )
+                }
+                SettingsSection.PRIVACY -> {
+                    // ORG-NEW: Dedicated Privacy Sub-screen
+                    SettingsPrivacySection(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding())
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        betaTestPrivacy = currentSettings.betaTestPrivacy,
+                        onBetaTestPrivacyChange = {
+                            viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it))
                         }
                     )
                 }
@@ -396,62 +432,42 @@ fun SettingsScreen(
                             }
                         )
 
-                        // MUSE-REF: Metadata Card in Grouped Card format
+                        // INTEG-REDESIGN: Metadata Section with external header and unified GroupedCard
+                        SettingsSectionHeader(text = "Metadata")
                         GroupedCard {
                             Column(
-                                modifier = Modifier.padding(20.dp), // MUSE-REF
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 14.dp, horizontal = 20.dp)
                             ) {
-                                Text(
-                                    text = "Metadata",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = palette.textPrimary // MUSE-REF
-                                )
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Key,
-                                            contentDescription = null,
-                                            tint = accent,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "StashDB API Key",
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                            color = palette.textPrimary // MUSE-REF
-                                        )
-                                    }
-
-                                    FilledTonalButton(
-                                        onClick = {
-                                            clipboardManager.getText()?.text?.let { clipboardText ->
-                                                if (clipboardText.isNotBlank()) {
-                                                    stashDbKey = clipboardText.trim()
-                                                    viewModel.updateSettings(currentSettings.copy(stashDbApiKey = clipboardText.trim()))
-                                                }
-                                            }
-                                        },
-                                        shape = CircleShape,
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_app_paste),
-                                            contentDescription = "Paste",
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Paste", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        text = "StashDB API Key",
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Medium
+                                        ),
+                                        color = palette.textPrimary
+                                    )
+                                    if (stashDbKey.isNotBlank()) {
+                                        TextButton(
+                                            onClick = {
+                                                stashDbKey = ""
+                                                viewModel.updateSettings(currentSettings.copy(stashDbApiKey = ""))
+                                            },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                        ) {
+                                            Text("Clear Token", fontSize = 13.sp)
+                                        }
                                     }
                                 }
+
+                                Spacer(modifier = Modifier.height(10.dp))
 
                                 OutlinedTextField(
                                     value = stashDbKey,
@@ -459,66 +475,107 @@ fun SettingsScreen(
                                         stashDbKey = it
                                         viewModel.updateSettings(currentSettings.copy(stashDbApiKey = it.trim()))
                                     },
-                                    placeholder = { Text("Paste StashDB API token here...", fontSize = 14.sp) },
-                                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, lineHeight = 20.sp, color = palette.textPrimary),
+                                    placeholder = {
+                                        Text(
+                                            "Paste StashDB API token here...",
+                                            fontSize = 14.sp,
+                                            color = palette.textSecondary
+                                        )
+                                    },
+                                    textStyle = LocalTextStyle.current.copy(
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp,
+                                        color = palette.textPrimary
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f),
+                                        unfocusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f),
+                                        focusedBorderColor = accent,
+                                        unfocusedBorderColor = palette.border,
+                                        focusedTextColor = palette.textPrimary,
+                                        unfocusedTextColor = palette.textPrimary,
+                                        cursorColor = accent
+                                    ),
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Key,
                                             contentDescription = null,
                                             tint = accent,
                                             modifier = Modifier
-                                                .padding(start = 10.dp)
+                                                .padding(start = 12.dp)
                                                 .size(22.dp)
                                         )
                                     },
-                                    visualTransformation = if (showStashDbKey) VisualTransformation.None else PasswordVisualTransformation(),
                                     trailingIcon = {
-                                        IconButton(onClick = { showStashDbKey = !showStashDbKey }) {
-                                            Icon(
-                                                imageVector = if (showStashDbKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                contentDescription = if (showStashDbKey) "Hide API Key" else "Show API Key"
-                                            )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(end = 4.dp)
+                                        ) {
+                                            IconButton(onClick = { showStashDbKey = !showStashDbKey }) {
+                                                Icon(
+                                                    imageVector = if (showStashDbKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = if (showStashDbKey) "Hide API Key" else "Show API Key",
+                                                    tint = palette.textSecondary
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    clipboardManager.getText()?.text?.let { clipboardText ->
+                                                        if (clipboardText.isNotBlank()) {
+                                                            stashDbKey = clipboardText.trim()
+                                                            viewModel.updateSettings(currentSettings.copy(stashDbApiKey = clipboardText.trim()))
+                                                        }
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_app_paste),
+                                                    contentDescription = "Paste",
+                                                    tint = palette.textSecondary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
                                         }
                                     },
+                                    visualTransformation = if (showStashDbKey) VisualTransformation.None else PasswordVisualTransformation(),
                                     singleLine = true,
                                     maxLines = 1,
-                                    shape = RoundedCornerShape(28.dp),
+                                    shape = RoundedCornerShape(16.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(56.dp)
                                         .testTag("stashdb_api_key_input")
                                 )
 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(20.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Text(
-                                        text = "Get API key from stashdb.org profile",
-                                        color = palette.textSecondary, // MUSE-REF
-                                        fontSize = 12.sp
-                                    )
-                                }
-
-                                if (stashDbKey.isNotBlank()) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
-                                    ) {
-                                        TextButton(
-                                            onClick = {
-                                                stashDbKey = ""
-                                                viewModel.updateSettings(currentSettings.copy(stashDbApiKey = ""))
-                                            },
-                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                        ) {
-                                            Text("Clear Token", fontSize = 13.sp)
-                                        }
-                                    }
-                                }
+                                Text(
+                                    text = "Get API key from stashdb.org profile",
+                                    fontSize = 12.sp,
+                                    color = palette.textSecondary,
+                                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                                )
                             }
+                        }
+
+                        // ORG-NEW: Playback Settings Section containing Player Gestures (Single source of truth)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SettingsSectionHeader(text = "Playback") // ORG-NEW
+                        GroupedCard {
+                            SettingsRow(
+                                title = "Player Gestures",
+                                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
+                                trailing = {
+                                    Switch(
+                                        checked = currentSettings.enableVideoPlayerGestures,
+                                        onCheckedChange = {
+                                            viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
+                                        },
+                                        colors = museSwitchColors()
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = !currentSettings.enableVideoPlayerGestures))
+                                }
+                            ) // ORG-MOVED: MAIN_MENU → INTEGRATIONS under Playback header (Single source of truth)
                         }
                     }
                 }
@@ -560,184 +617,124 @@ fun SettingsScreen(
 }
 
 /**
- * MUSE-REF: Main Settings Menu organized in exactly 5 distinct Grouped Cards:
- * ① Appearance & Colors
- * ② Integrations
- * ③ Playback & Privacy
- * ④ Data & Samples
- * ⑤ About
+ * ORG-FIX: Main Settings Menu organized as a clean single GroupedCard with exactly 5 category rows:
+ * 1. Display
+ * 2. Privacy
+ * 3. Integrations
+ * 4. Data & Backup
+ * 5. Sample Dataset
+ * Followed by a non-interactive centered version footer.
  */
 @Composable
 private fun SettingsMainMenu(
     modifier: Modifier = Modifier,
-    viewModel: MainViewModel, // ORG-FIX: Clean direct viewModel reference
-    currentSettings: SettingsEntity,
-    themeName: String,
-    accentHex: String,
-    stashDbKey: String,
-    rdKeyConfigured: Boolean,
-    onNavigateTo: (SettingsSection) -> Unit
+    onNavigateTo: (SettingsSection) -> Unit // ORG-FIX: Clean signature with only onNavigateTo
 ) {
+    val palette = LocalVaultPalette.current
+
     Column(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // ① [Appearance & Colors]
-        SettingsSectionHeader(text = "Appearance & Colors") // MUSE-REF
+        // Single unified GroupedCard containing all 5 category rows
         GroupedCard {
+            // 1. Display
             SettingsRow(
-                title = "Theme",
-                subtitle = themeName,
+                title = "Display",
+                subtitle = "Theme, accent, icons & animations",
+                icon = painterResource(id = R.drawable.ic_settings_display), // ORG-NEW
                 trailing = { SettingsNavigationChevron() },
                 onClick = { onNavigateTo(SettingsSection.DISPLAY) }
             )
             SettingsDivider()
+            // 2. Privacy - ORG-NEW
             SettingsRow(
-                title = "Accent & Color Palette",
-                subtitle = accentHex.replace("_", " ").replaceFirstChar { it.uppercase() },
+                title = "Privacy",
+                subtitle = "Content privacy blur",
+                icon = painterResource(id = R.drawable.ic_settings_privacy), // ORG-NEW
                 trailing = { SettingsNavigationChevron() },
-                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
+                onClick = { onNavigateTo(SettingsSection.PRIVACY) }
             )
             SettingsDivider()
+            // 3. Integrations
             SettingsRow(
-                title = "Transition Animation",
-                subtitle = when (currentSettings.transitionStyle) {
-                    1 -> "Lateral Slide"
-                    2 -> "Smooth Fade & Scale"
-                    3 -> "Link Transition"
-                    else -> "Dynamic Vertical"
-                },
-                trailing = { SettingsNavigationChevron() },
-                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
-            )
-            SettingsDivider()
-            SettingsRow(
-                title = "App Icons",
-                subtitle = "Customize app launcher icon style",
-                trailing = { SettingsNavigationChevron() },
-                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
-            )
-            SettingsDivider()
-            // ORG-MOVED: DISPLAY → MAIN_MENU (Single source of truth for Cards Layout)
-            SettingsRow(
-                title = "Cards Layout",
-                subtitle = "Display cards for Actors and Studios management",
-                trailing = {
-                    Switch(
-                        checked = currentSettings.showManagementCards,
-                        onCheckedChange = { viewModel.updateSettings(currentSettings.copy(showManagementCards = it)) },
-                        colors = museSwitchColors(), // MUSE-REF
-                        modifier = Modifier.testTag("cards_management_switch")
-                    )
-                },
-                onClick = { viewModel.updateSettings(currentSettings.copy(showManagementCards = !currentSettings.showManagementCards)) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
-
-        // ② [Integrations] - ORG-FIX: Consolidated Debrid & StashDB into single group
-        SettingsSectionHeader(text = "Integrations") // MUSE-REF
-        GroupedCard {
-            SettingsRow(
-                title = "Debrid Services",
-                subtitle = if (rdKeyConfigured) "Real-Debrid / Torbox Active" else "Real-Debrid & Torbox",
+                title = "Integrations",
+                subtitle = "Real-Debrid, Torbox & StashDB",
+                icon = painterResource(id = R.drawable.ic_settings_integrations), // ORG-NEW
                 trailing = { SettingsNavigationChevron() },
                 onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
             )
             SettingsDivider()
-            // ORG-MOVED: StashDB Group → Integrations Group
-            SettingsRow(
-                title = "StashDB API Key",
-                subtitle = if (stashDbKey.isNotBlank()) "Configured ••••••••" else "Add your API token to search scenes & performers",
-                trailing = { SettingsNavigationChevron() },
-                onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
-
-        // ③ [Playback & Privacy] - ORG-FIX: Consolidated Player Gestures and Beta Test Privacy
-        SettingsSectionHeader(text = "Playback & Privacy") // MUSE-REF
-        GroupedCard {
-            // ORG-MOVED: ADVANCED → MAIN_MENU (Single source of truth for Player Gestures)
-            SettingsRow(
-                title = "Player Gestures",
-                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
-                trailing = {
-                    Switch(
-                        checked = currentSettings.enableVideoPlayerGestures,
-                        onCheckedChange = { viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it)) },
-                        colors = museSwitchColors() // MUSE-REF
-                    )
-                },
-                onClick = { viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = !currentSettings.enableVideoPlayerGestures)) }
-            )
-            SettingsDivider()
-            // ORG-MOVED: PRIVACY → MAIN_MENU (Single source of truth for Beta Test Privacy)
-            SettingsRow(
-                title = "Beta Test Privacy",
-                subtitle = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
-                trailing = {
-                    Switch(
-                        checked = currentSettings.betaTestPrivacy,
-                        onCheckedChange = { viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it)) },
-                        colors = museSwitchColors(), // MUSE-REF
-                        modifier = Modifier.testTag("beta_test_privacy_switch")
-                    )
-                },
-                onClick = { viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = !currentSettings.betaTestPrivacy)) }
-            )
-            // ORG-FIX: Removed Allow Uncached Downloads from MAIN_MENU (retained exclusively in IntegrationsDropdownDebridSection)
-        }
-
-        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
-
-        // ④ [Data & Samples] - ORG-FIX: Consolidated Data & Backup with Sample Dataset
-        SettingsSectionHeader(text = "Data & Samples") // MUSE-REF
-        GroupedCard {
+            // 4. Data & Backup
             SettingsRow(
                 title = "Data & Backup",
-                subtitle = "Export & Import JSON database backups",
+                subtitle = "Export & restore your vault",
+                icon = painterResource(id = R.drawable.ic_settings_backup), // ORG-NEW
                 trailing = { SettingsNavigationChevron() },
                 onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
             )
             SettingsDivider()
-            // ORG-MOVED: ADVANCED → DATA & SAMPLES
+            // 5. Sample Dataset
             SettingsRow(
                 title = "Sample Dataset",
-                subtitle = "Load realistic sample data or clean database",
+                subtitle = "Demo data for testing",
+                icon = painterResource(id = R.drawable.ic_settings_sample_data), // ORG-NEW
                 trailing = { SettingsNavigationChevron() },
                 onClick = { onNavigateTo(SettingsSection.SAMPLE_DATA) }
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
+        Spacer(modifier = Modifier.height(24.dp)) // ORG-FIX
 
-        // ⑤ [About]
-        SettingsSectionHeader(text = "About") // MUSE-REF
-        GroupedCard {
-            SettingsRow(
-                title = "Goony Vault",
-                subtitle = "Version 1.0.0 (Build 42)",
-                trailing = null,
-                onClick = null
-            )
-            SettingsDivider()
-            SettingsRow(
-                title = "Design System",
-                subtitle = "Material 3 • Grouped Cards Reference",
-                trailing = null,
-                onClick = null
-            )
-        }
+        // Non-interactive centered footer text replacing About card
+        Text(
+            text = "Goony Vault • Version 1.0.0 (Build 42)",
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontSize = 12.sp
+            ),
+            color = palette.textMuted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) // ORG-FIX
 
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 /**
+ * ORG-NEW: Privacy Section as a dedicated sub-screen
+ * Single source of truth for Beta Test Privacy
+ */
+@Composable
+private fun SettingsPrivacySection(
+    modifier: Modifier = Modifier,
+    betaTestPrivacy: Boolean,
+    onBetaTestPrivacyChange: (Boolean) -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        GroupedCard {
+            SettingsRow(
+                title = "Beta Test Privacy",
+                subtitle = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
+                trailing = {
+                    Switch(
+                        checked = betaTestPrivacy,
+                        onCheckedChange = onBetaTestPrivacyChange,
+                        colors = museSwitchColors(),
+                        modifier = Modifier.testTag("beta_test_privacy_switch")
+                    )
+                },
+                onClick = { onBetaTestPrivacyChange(!betaTestPrivacy) }
+            ) // ORG-MOVED: MAIN_MENU → PRIVACY (Single source of truth)
+        }
+    }
+}
+
+/**
  * MUSE-REF: Display Section in Grouped Card format
- * ORG-FIX: Cards Layout toggle removed (single source of truth in MAIN_MENU)
+ * ORG-MOVED: Cards Layout toggle moved here as the single source of truth
  */
 @Composable
 private fun SettingsDisplaySection(
@@ -746,6 +743,8 @@ private fun SettingsDisplaySection(
     onThemeChange: (String) -> Unit,
     accentHex: String,
     onAccentChange: (String) -> Unit,
+    showManagementCards: Boolean, // ORG-MOVED
+    onShowManagementCardsChange: (Boolean) -> Unit, // ORG-MOVED
     appIconStyle: Int,
     onAppIconStyleChange: (Int) -> Unit,
     transitionStyle: Int,
@@ -819,6 +818,23 @@ private fun SettingsDisplaySection(
                     onSelectPalette = onAccentChange
                 )
             }
+        }
+
+        // Cards layout toggle in Grouped Card - ORG-MOVED: Single source of truth in Display
+        GroupedCard {
+            SettingsRow(
+                title = "Cards Layout",
+                subtitle = "Display cards for Actors and Studios management",
+                trailing = {
+                    Switch(
+                        checked = showManagementCards,
+                        onCheckedChange = onShowManagementCardsChange,
+                        colors = museSwitchColors(), // MUSE-REF
+                        modifier = Modifier.testTag("cards_management_switch")
+                    )
+                },
+                onClick = { onShowManagementCardsChange(!showManagementCards) }
+            ) // ORG-MOVED: MAIN_MENU → DISPLAY (Single source of truth)
         }
     }
 }

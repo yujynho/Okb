@@ -1,25 +1,24 @@
 package com.example.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -57,15 +56,15 @@ enum class DebridServiceOption(
 }
 
 /**
- * SELECT-UNIFY: Integrations Debrid Section unified into MUSE-REF Design System:
- * - Card containerColor: palette.cardBg, radius 24.dp, elevation 0.dp, border null
- * - Section headers: 13sp Bold, palette.textMuted with padding(bottom=4.dp)
- * - OutlinedTextFields: RoundedCornerShape(16.dp) with unfocusedContainerColor Color.White.copy(0.05f)
- * - Test Connection: TextButton row style with accent color
- * - Allow Uncached Downloads: SettingsRow layout with MUSE-REF Switch styling
- * - DropdownMenu: containerColor palette.cardBg, RoundedCornerShape(16.dp)
+ * INTEG-REDESIGN: Integrations Debrid Section redesigned in full MUSE-REF Grouped Card style:
+ * - Section header "Debrid" outside the Card
+ * - Card: RoundedCornerShape(24.dp), palette.cardBg, elevation 0.dp, border null
+ * - Row 1: Provider selection row with anchored DropdownMenu (Check icon, 48dp height items)
+ * - Row 2: API key field with 16dp radius, inline eye & paste icon buttons
+ * - Row 3: Test connection row with 36dp Zap icon circle and inline color-coded result
+ * - Row 4: Priority selection row with anchored DropdownMenu
+ * - Row 5: Allow uncached downloads SettingsRow with MUSE-REF Switch styling
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IntegrationsDropdownDebridSection(
     realDebridKey: String,
@@ -78,8 +77,9 @@ fun IntegrationsDropdownDebridSection(
     onAllowUncachedChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val palette = LocalVaultPalette.current // SELECT-UNIFY
-    val accent = LocalAccentColor.current // SELECT-UNIFY
+    val palette = LocalVaultPalette.current // INTEG-REDESIGN
+    val accent = LocalAccentColor.current // INTEG-REDESIGN
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f // INTEG-REDESIGN
 
     var selectedService by remember {
         mutableStateOf(
@@ -174,355 +174,416 @@ fun IntegrationsDropdownDebridSection(
         }
     }
 
-    // Common TextField colors matching MUSE-REF
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = Color.White.copy(alpha = 0.05f), // SELECT-UNIFY
-        unfocusedContainerColor = Color.White.copy(alpha = 0.05f), // SELECT-UNIFY
-        focusedBorderColor = accent, // SELECT-UNIFY
-        unfocusedBorderColor = palette.border, // SELECT-UNIFY
-        focusedTextColor = palette.textPrimary, // SELECT-UNIFY
-        unfocusedTextColor = palette.textPrimary, // SELECT-UNIFY
-        focusedLabelColor = accent, // SELECT-UNIFY
-        unfocusedLabelColor = palette.textSecondary, // SELECT-UNIFY
-        cursorColor = accent // SELECT-UNIFY
-    )
+    Column(modifier = modifier.fillMaxWidth()) {
+        // ① SettingsSectionHeader("Debrid") outside the Card
+        Text(
+            text = "Debrid",
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontSize = 13.sp, // INTEG-REDESIGN
+                fontWeight = FontWeight.Bold
+            ),
+            color = palette.textMuted, // INTEG-REDESIGN
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp) // INTEG-REDESIGN
+        )
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // SELECT-UNIFY: GroupedCard with shape = 24.dp and palette.cardBg
         Card(
-            shape = RoundedCornerShape(24.dp), // SELECT-UNIFY: 24dp
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // SELECT-UNIFY: palette.cardBg
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // SELECT-UNIFY: 0dp
-            border = null, // SELECT-UNIFY: No border
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp), // INTEG-REDESIGN: 24dp radius
+            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // INTEG-REDESIGN: palette.cardBg
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // INTEG-REDESIGN: 0dp elevation
+            border = null // INTEG-REDESIGN: no border
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp), // SELECT-UNIFY: 20dp padding
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Section Header
-                Text(
-                    text = "Debrid Service Setup",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 13.sp, // SELECT-UNIFY: 13sp Bold section header
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = palette.textMuted, // SELECT-UNIFY: palette.textMuted
-                    modifier = Modifier.padding(bottom = 4.dp) // SELECT-UNIFY
-                )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Row 1: Provider Selection Row
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isDropdownExpanded = true }
+                            .padding(vertical = 18.dp, horizontal = 20.dp), // INTEG-REDESIGN
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Provider",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 16.sp, // INTEG-REDESIGN
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = palette.textPrimary // INTEG-REDESIGN
+                        )
 
-                // Service Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = isDropdownExpanded,
-                    onExpandedChange = { isDropdownExpanded = !isDropdownExpanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = selectedService.title,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Select Provider") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Cloud,
-                                contentDescription = null,
-                                tint = accent, // SELECT-UNIFY
-                                modifier = Modifier.padding(start = 10.dp).size(22.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = selectedService.title,
+                                fontSize = 14.sp, // INTEG-REDESIGN
+                                color = palette.textPrimary // INTEG-REDESIGN
                             )
-                        },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded)
-                        },
-                        shape = RoundedCornerShape(16.dp), // SELECT-UNIFY: 16dp shape
-                        colors = textFieldColors, // SELECT-UNIFY
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                                contentDescription = null,
+                                tint = palette.textMuted, // INTEG-REDESIGN
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
 
-                    ExposedDropdownMenu(
+                    DropdownMenu(
                         expanded = isDropdownExpanded,
                         onDismissRequest = { isDropdownExpanded = false },
-                        shape = RoundedCornerShape(16.dp), // SELECT-UNIFY: 16dp
-                        modifier = Modifier.background(palette.cardBg) // SELECT-UNIFY: palette.cardBg
+                        modifier = Modifier.background(palette.cardBg), // INTEG-REDESIGN: palette.cardBg
+                        shape = RoundedCornerShape(16.dp), // INTEG-REDESIGN: 16dp
+                        tonalElevation = 8.dp // INTEG-REDESIGN: 8dp
                     ) {
                         DebridServiceOption.values().forEach { option ->
                             val isCurrentSelected = selectedService == option
-                            val isOptionConfigured = when (option) {
-                                DebridServiceOption.REAL_DEBRID -> realDebridKey.isNotBlank()
-                                DebridServiceOption.TORBOX -> torboxKey.isNotBlank()
-                            }
-
                             DropdownMenuItem(
                                 text = {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp) // INTEG-REDESIGN: 48dp height
+                                            .padding(horizontal = 16.dp), // INTEG-REDESIGN: 16dp horizontal
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        if (isCurrentSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = accent, // INTEG-REDESIGN
+                                                modifier = Modifier.size(18.dp) // INTEG-REDESIGN: 18dp check
+                                            )
+                                        } else {
+                                            Spacer(modifier = Modifier.width(18.dp))
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
                                         Text(
                                             text = option.title,
-                                            fontWeight = if (isCurrentSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isCurrentSelected) accent else palette.textPrimary // SELECT-UNIFY
+                                            fontSize = 14.sp, // INTEG-REDESIGN: 14sp
+                                            color = palette.textPrimary, // INTEG-REDESIGN
+                                            fontWeight = if (isCurrentSelected) FontWeight.SemiBold else FontWeight.Normal
                                         )
-                                        if (isOptionConfigured) {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = Color(0xFF30D158).copy(alpha = 0.15f) // SELECT-UNIFY: 0xFF30D158
-                                            ) {
-                                                Text(
-                                                    text = "Configured",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = Color(0xFF30D158), // SELECT-UNIFY
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                                )
-                                            }
-                                        }
                                     }
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Cloud,
-                                        contentDescription = null,
-                                        tint = if (isCurrentSelected) accent else palette.textSecondary // SELECT-UNIFY
-                                    )
                                 },
                                 onClick = {
                                     selectedService = option
                                     testStatusMessage = null
                                     isDropdownExpanded = false
                                 },
-                                modifier = Modifier
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                contentPadding = PaddingValues(0.dp)
                             )
                         }
                     }
                 }
 
-                // API Key Field Title & Paste Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.Key,
-                            contentDescription = null,
-                            tint = accent, // SELECT-UNIFY
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${selectedService.title} API Key",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = palette.textPrimary // SELECT-UNIFY
-                        )
-                    }
-
-                    FilledTonalButton(
-                        onClick = {
-                            clipboardManager.getText()?.text?.let { clipboardText ->
-                                if (clipboardText.isNotBlank()) {
-                                    onActiveKeyChange(clipboardText.trim())
-                                }
-                            }
-                        },
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_app_paste),
-                            contentDescription = "Paste",
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Paste", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                OutlinedTextField(
-                    value = activeKey,
-                    onValueChange = onActiveKeyChange,
-                    placeholder = { Text("Paste ${selectedService.title} API token here...", fontSize = 14.sp) },
-                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, lineHeight = 20.sp, color = palette.textPrimary),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Key,
-                            contentDescription = null,
-                            tint = accent, // SELECT-UNIFY
-                            modifier = Modifier.padding(start = 10.dp).size(22.dp)
-                        )
-                    },
-                    visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showApiKey = !showApiKey }) {
-                            Icon(
-                                imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showApiKey) "Hide API Key" else "Show API Key",
-                                tint = palette.textSecondary // SELECT-UNIFY
-                            )
-                        }
-                    },
-                    singleLine = true,
-                    maxLines = 1,
-                    shape = RoundedCornerShape(16.dp), // SELECT-UNIFY: 16dp
-                    colors = textFieldColors, // SELECT-UNIFY
-                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("debrid_api_key_input")
+                // Divider 1
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
+                    thickness = 1.dp,
+                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
                 )
 
-                // Test Connection Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Row 2: API Key OutlinedTextField
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp, horizontal = 20.dp) // INTEG-REDESIGN
                 ) {
-                    Text(
-                        text = selectedService.tokenUrlHint,
-                        fontSize = 12.sp,
-                        color = palette.textSecondary, // SELECT-UNIFY
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // SELECT-UNIFY: TextButton row style with accent color
-                    TextButton(
-                        onClick = { testConnection() },
-                        enabled = activeKey.isNotBlank() && !isTestingConnection,
-                        shape = RoundedCornerShape(12.dp) // SELECT-UNIFY
-                    ) {
-                        if (isTestingConnection) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = accent) // SELECT-UNIFY
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = "Test Connection",
-                            fontSize = 14.sp, // SELECT-UNIFY: 14sp Medium
-                            fontWeight = FontWeight.Medium,
-                            color = accent // SELECT-UNIFY
-                        )
-                    }
-                }
-
-                if (testStatusMessage != null) {
-                    Text(
-                        text = testStatusMessage!!,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (testStatusMessage!!.startsWith("✓")) Color(0xFF30D158) else MaterialTheme.colorScheme.error // SELECT-UNIFY
-                    )
-                }
-
-                if (activeKey.isNotBlank()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = { onActiveKeyChange("") },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("Clear Token", fontSize = 13.sp)
-                        }
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = palette.border.copy(alpha = 0.3f))
-
-                // Provider Priority Order Header
-                Text(
-                    text = "Provider Priority Order",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 13.sp, // SELECT-UNIFY: 13sp Bold section header
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = palette.textMuted, // SELECT-UNIFY: palette.textMuted
-                    modifier = Modifier.padding(bottom = 4.dp) // SELECT-UNIFY
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = isOrderDropdownExpanded,
-                    onExpandedChange = { isOrderDropdownExpanded = !isOrderDropdownExpanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val orderLabel = when (debridOrder) {
-                        "REAL_DEBRID_FIRST" -> "Real-Debrid First"
-                        "TORBOX_FIRST" -> "Torbox First"
-                        else -> "Auto (Cache Check -> Instant Stream)"
-                    }
-
                     OutlinedTextField(
-                        value = orderLabel,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Priority Strategy") },
+                        value = activeKey,
+                        onValueChange = onActiveKeyChange,
+                        placeholder = {
+                            Text(
+                                "Paste ${selectedService.title} API token here...",
+                                fontSize = 14.sp,
+                                color = palette.textSecondary
+                            )
+                        },
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            color = palette.textPrimary
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f), // INTEG-REDESIGN
+                            unfocusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f), // INTEG-REDESIGN
+                            focusedBorderColor = accent, // INTEG-REDESIGN
+                            unfocusedBorderColor = palette.border, // INTEG-REDESIGN
+                            focusedTextColor = palette.textPrimary, // INTEG-REDESIGN
+                            unfocusedTextColor = palette.textPrimary, // INTEG-REDESIGN
+                            cursorColor = accent
+                        ),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Outlined.Speed,
+                                imageVector = Icons.Outlined.Key,
                                 contentDescription = null,
-                                tint = accent, // SELECT-UNIFY
-                                modifier = Modifier.padding(start = 10.dp).size(22.dp)
+                                tint = accent, // INTEG-REDESIGN
+                                modifier = Modifier
+                                    .padding(start = 12.dp)
+                                    .size(22.dp) // INTEG-REDESIGN: 22dp
                             )
                         },
                         trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOrderDropdownExpanded)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                IconButton(onClick = { showApiKey = !showApiKey }) {
+                                    Icon(
+                                        imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (showApiKey) "Hide API Key" else "Show API Key",
+                                        tint = palette.textSecondary // INTEG-REDESIGN
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.getText()?.text?.let { clipboardText ->
+                                            if (clipboardText.isNotBlank()) {
+                                                onActiveKeyChange(clipboardText.trim())
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_app_paste),
+                                        contentDescription = "Paste",
+                                        tint = palette.textSecondary, // INTEG-REDESIGN
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         },
-                        shape = RoundedCornerShape(16.dp), // SELECT-UNIFY: 16dp
-                        colors = textFieldColors, // SELECT-UNIFY
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                        singleLine = true,
+                        maxLines = 1,
+                        shape = RoundedCornerShape(16.dp), // INTEG-REDESIGN: 16dp
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp) // INTEG-REDESIGN: 56dp
+                            .testTag("debrid_api_key_input")
                     )
 
-                    ExposedDropdownMenu(
-                        expanded = isOrderDropdownExpanded,
-                        onDismissRequest = { isOrderDropdownExpanded = false },
-                        shape = RoundedCornerShape(16.dp), // SELECT-UNIFY: 16dp
-                        modifier = Modifier.background(palette.cardBg) // SELECT-UNIFY: palette.cardBg
+                    Text(
+                        text = selectedService.tokenUrlHint,
+                        fontSize = 12.sp,
+                        color = palette.textSecondary, // INTEG-REDESIGN
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                    )
+                }
+
+                // Divider 2
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
+                    thickness = 1.dp,
+                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
+                )
+
+                // Row 3: Test Connection Row
+                val testSubtitle = when {
+                    isTestingConnection -> "Testing connection..."
+                    testStatusMessage != null -> testStatusMessage!!
+                    else -> "Verify your API key with the provider"
+                }
+                val testSubtitleColor = when {
+                    testStatusMessage?.startsWith("✓") == true -> Color(0xFF30D158) // INTEG-REDESIGN: 0xFF30D158
+                    testStatusMessage?.startsWith("❌") == true -> MaterialTheme.colorScheme.error
+                    else -> palette.textSecondary
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = activeKey.isNotBlank() && !isTestingConnection) {
+                            testConnection()
+                        }
+                        .padding(vertical = 18.dp, horizontal = 20.dp), // INTEG-REDESIGN
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Auto (Cache Check -> Instant Stream)", color = palette.textPrimary) },
-                            onClick = { onDebridOrderChange("AUTO"); isOrderDropdownExpanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Real-Debrid First", color = palette.textPrimary) },
-                            onClick = { onDebridOrderChange("REAL_DEBRID_FIRST"); isOrderDropdownExpanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Torbox First", color = palette.textPrimary) },
-                            onClick = { onDebridOrderChange("TORBOX_FIRST"); isOrderDropdownExpanded = false }
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp) // INTEG-REDESIGN: 36dp circle
+                                .clip(CircleShape)
+                                .background(accent.copy(alpha = 0.15f)), // INTEG-REDESIGN
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Bolt, // INTEG-REDESIGN: Bolt icon
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(18.dp) // INTEG-REDESIGN: 18dp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Test Connection",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 16.sp, // INTEG-REDESIGN
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = palette.textPrimary // INTEG-REDESIGN
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = testSubtitle,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 13.sp // INTEG-REDESIGN
+                                ),
+                                color = testSubtitleColor
+                            )
+                        }
+                    }
+
+                    if (isTestingConnection) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = accent
                         )
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = palette.border.copy(alpha = 0.3f))
+                // Divider 3
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
+                    thickness = 1.dp,
+                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
+                )
 
-                // SELECT-UNIFY: Allow Uncached Downloads Row in SettingsRow style
+                // Row 4: Priority Selection Row
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isOrderDropdownExpanded = true }
+                            .padding(vertical = 18.dp, horizontal = 20.dp), // INTEG-REDESIGN
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                text = "Priority",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 16.sp, // INTEG-REDESIGN
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = palette.textPrimary // INTEG-REDESIGN
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = when (debridOrder) {
+                                    "REAL_DEBRID_FIRST" -> "Real-Debrid first"
+                                    "TORBOX_FIRST" -> "Torbox first"
+                                    else -> "Auto (Cache check -> instant stream)"
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 13.sp // INTEG-REDESIGN
+                                ),
+                                color = palette.textSecondary // INTEG-REDESIGN
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                            contentDescription = null,
+                            tint = palette.textMuted, // INTEG-REDESIGN
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isOrderDropdownExpanded,
+                        onDismissRequest = { isOrderDropdownExpanded = false },
+                        modifier = Modifier.background(palette.cardBg), // INTEG-REDESIGN: palette.cardBg
+                        shape = RoundedCornerShape(16.dp), // INTEG-REDESIGN: 16dp
+                        tonalElevation = 8.dp // INTEG-REDESIGN: 8dp
+                    ) {
+                        val priorityOptions = listOf(
+                            "AUTO" to "Auto (Cache check -> instant stream)",
+                            "REAL_DEBRID_FIRST" to "Real-Debrid first",
+                            "TORBOX_FIRST" to "Torbox first"
+                        )
+                        priorityOptions.forEach { (key, label) ->
+                            val isCurrentSelected = debridOrder == key || (key == "AUTO" && debridOrder != "REAL_DEBRID_FIRST" && debridOrder != "TORBOX_FIRST")
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp) // INTEG-REDESIGN: 48dp height
+                                            .padding(horizontal = 16.dp), // INTEG-REDESIGN: 16dp horizontal
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (isCurrentSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = accent, // INTEG-REDESIGN
+                                                modifier = Modifier.size(18.dp) // INTEG-REDESIGN: 18dp check
+                                            )
+                                        } else {
+                                            Spacer(modifier = Modifier.width(18.dp))
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = label,
+                                            fontSize = 14.sp, // INTEG-REDESIGN: 14sp
+                                            color = palette.textPrimary, // INTEG-REDESIGN
+                                            fontWeight = if (isCurrentSelected) FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    onDebridOrderChange(key)
+                                    isOrderDropdownExpanded = false
+                                },
+                                contentPadding = PaddingValues(0.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Divider 4
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
+                    thickness = 1.dp,
+                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
+                )
+
+                // Row 5: Allow Uncached Downloads Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
                         .clickable { onAllowUncachedChange(!allowUncachedDownloads) }
-                        .padding(vertical = 10.dp, horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(vertical = 18.dp, horizontal = 20.dp), // INTEG-REDESIGN
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Allow Uncached Cloud Downloads",
+                            text = "Allow Uncached Downloads",
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = 16.sp, // SELECT-UNIFY: 16sp Medium
+                                fontSize = 16.sp, // INTEG-REDESIGN
                                 fontWeight = FontWeight.Medium
                             ),
-                            color = palette.textPrimary // SELECT-UNIFY
+                            color = palette.textPrimary // INTEG-REDESIGN
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "If enabled, non-cached torrents will download to cloud account.",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 13.sp // SELECT-UNIFY: 13sp
+                                fontSize = 13.sp // INTEG-REDESIGN
                             ),
-                            color = palette.textSecondary // SELECT-UNIFY
+                            color = palette.textSecondary // INTEG-REDESIGN
                         )
                     }
 
@@ -530,12 +591,12 @@ fun IntegrationsDropdownDebridSection(
                         checked = allowUncachedDownloads,
                         onCheckedChange = onAllowUncachedChange,
                         colors = SwitchDefaults.colors(
-                            checkedTrackColor = Color(0xFF057DF2), // SELECT-UNIFY: MUSE-REF Switch style
-                            checkedThumbColor = Color.White, // SELECT-UNIFY
-                            uncheckedTrackColor = Color.White.copy(alpha = 0.14f), // SELECT-UNIFY
-                            uncheckedThumbColor = Color(0xFF9A9A9E), // SELECT-UNIFY
-                            uncheckedBorderColor = Color.Transparent, // SELECT-UNIFY
-                            checkedBorderColor = Color.Transparent // SELECT-UNIFY
+                            checkedTrackColor = Color(0xFF057DF2), // INTEG-REDESIGN: MUSE-REF Switch style
+                            checkedThumbColor = Color.White,
+                            uncheckedTrackColor = Color.White.copy(alpha = 0.14f),
+                            uncheckedThumbColor = Color(0xFF9A9A9E),
+                            uncheckedBorderColor = Color.Transparent,
+                            checkedBorderColor = Color.Transparent
                         )
                     )
                 }
