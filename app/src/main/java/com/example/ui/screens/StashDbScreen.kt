@@ -98,7 +98,7 @@ import java.util.UUID
 import com.example.ui.StashSearchType
 
 private val StudioLogoBgDark = Color(0xFF0F0F12)
-private val StudioLogoBgLight = Color(0xFF1F2937) // رمادي داكن على الفاتح
+private val StudioLogoBgLight = Color(0xFF1F2937) // Dark gray on light theme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

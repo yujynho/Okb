@@ -122,6 +122,7 @@ fun GVJVaultTheme(
     val animatedPrimaryContainer by animateColorAsState(rawColorScheme.primaryContainer, animSpec, label = "cs_primaryContainer")
     val animatedSecondary by animateColorAsState(rawColorScheme.secondary, animSpec, label = "cs_secondary")
     val animatedTertiary by animateColorAsState(rawColorScheme.tertiary, animSpec, label = "cs_tertiary")
+    val animatedOnSurfaceVariant by animateColorAsState(rawColorScheme.onSurfaceVariant, animSpec, label = "cs_onSurfaceVariant") // MUSE-REF
 
     val colorScheme = rawColorScheme.copy(
         primary = animatedPrimary,
@@ -133,6 +134,7 @@ fun GVJVaultTheme(
         onBackground = animatedTextPrimary,
         onSurface = animatedTextPrimary,
         surfaceVariant = animatedCardBg,
+        onSurfaceVariant = animatedOnSurfaceVariant, // MUSE-REF
         outline = animatedBorder
     )
 

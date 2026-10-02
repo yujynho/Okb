@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -42,7 +40,6 @@ import com.example.ui.components.NativeThemeSelector
 import com.example.ui.components.NativeTransitionSelector
 import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalVaultPalette
-import com.example.ui.theme.parseHexColor
 import kotlinx.coroutines.launch
 
 private enum class SettingsSection {
@@ -55,6 +52,153 @@ private enum class SettingsSection {
     SAMPLE_DATA
 }
 
+/**
+ * MUSE-REF: Switch colors matching the exact visual reference:
+ * Active track: #057DF2 (pure blue), thumb: White
+ * Inactive track: White 14%, thumb: #9A9A9E, borders: Transparent
+ */
+@Composable
+private fun museSwitchColors() = SwitchDefaults.colors(
+    checkedTrackColor = Color(0xFF057DF2), // MUSE-REF
+    checkedThumbColor = Color.White, // MUSE-REF
+    uncheckedTrackColor = Color.White.copy(alpha = 0.14f), // MUSE-REF
+    uncheckedThumbColor = Color(0xFF9A9A9E), // MUSE-REF
+    uncheckedBorderColor = Color.Transparent, // MUSE-REF
+    checkedBorderColor = Color.Transparent // MUSE-REF
+)
+
+/**
+ * MUSE-REF: Grouped Card container matching reference specification:
+ * Shape: 24.dp rounded corners
+ * Container: palette.cardBg (#353638 in Dark)
+ * Elevation: 0.dp (flat color contrast)
+ * Border: null (no outline)
+ */
+@Composable
+private fun GroupedCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp), // MUSE-REF
+        colors = CardDefaults.cardColors(containerColor = LocalVaultPalette.current.cardBg), // MUSE-REF
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // MUSE-REF
+        border = null, // MUSE-REF
+        content = content
+    )
+}
+
+/**
+ * MUSE-REF: Hairline divider between rows:
+ * Color: Color.White 10% (matches #4E4F51)
+ * Thickness: 1.dp
+ * Inset: 20.dp horizontal
+ */
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 20.dp), // MUSE-REF
+        thickness = 1.dp, // MUSE-REF
+        color = Color.White.copy(alpha = 0.10f) // MUSE-REF
+    )
+}
+
+/**
+ * MUSE-REF: Section header text above grouped cards:
+ * 13sp Bold, palette.textMuted, padding horizontal 24.dp, bottom 8.dp
+ */
+@Composable
+private fun SettingsSectionHeader(text: String) {
+    val palette = LocalVaultPalette.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium.copy(
+            fontSize = 13.sp, // MUSE-REF
+            fontWeight = FontWeight.Bold // MUSE-REF
+        ),
+        color = palette.textMuted, // MUSE-REF
+        modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp) // MUSE-REF
+    )
+}
+
+/**
+ * MUSE-REF: Standardized navigation chevron icon (›) in palette.textMuted
+ */
+@Composable
+private fun SettingsNavigationChevron() {
+    val palette = LocalVaultPalette.current
+    Icon(
+        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+        contentDescription = null,
+        tint = palette.textMuted, // MUSE-REF
+        modifier = Modifier.size(14.dp)
+    )
+}
+
+/**
+ * MUSE-REF: Standard Setting Row Composable:
+ * Padding: vertical = 18.dp, horizontal = 20.dp
+ * Title: 16sp, FontWeight.Medium, color = palette.textPrimary
+ * Subtitle: 13sp, color = palette.textSecondary
+ * Trailing: Switch or chevron in palette.textMuted
+ * Click: standard Material ripple
+ */
+@Composable
+private fun SettingsRow(
+    title: String,
+    subtitle: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null
+) {
+    val palette = LocalVaultPalette.current
+    val rowModifier = if (onClick != null) {
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick) // MUSE-REF regular ripple
+            .padding(vertical = 18.dp, horizontal = 20.dp) // MUSE-REF
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 18.dp, horizontal = 20.dp) // MUSE-REF
+    }
+
+    Row(
+        modifier = rowModifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = if (trailing != null) 12.dp else 0.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 16.sp, // MUSE-REF
+                    fontWeight = FontWeight.Medium // MUSE-REF
+                ),
+                color = palette.textPrimary // MUSE-REF
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp // MUSE-REF
+                    ),
+                    color = palette.textSecondary // MUSE-REF
+                )
+            }
+        }
+
+        if (trailing != null) {
+            trailing()
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -63,7 +207,6 @@ fun SettingsScreen(
 ) {
     val palette = LocalVaultPalette.current
     val accent = LocalAccentColor.current
-    val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
     val currentSettingsRaw by viewModel.settings.collectAsStateWithLifecycle()
@@ -121,34 +264,46 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = palette.bg, // BG-FIX
+        containerColor = palette.bg, // MUSE-REF
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
+            // MUSE-REF: Centered top bar with Bold 20sp, palette.surface (= bg in Dark) and circular #3B3C3E back button
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         screenTitle,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = palette.textPrimary // BG-FIX
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold, // MUSE-REF
+                            fontSize = 20.sp // MUSE-REF
+                        ),
+                        color = palette.textPrimary // MUSE-REF
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (currentSection != SettingsSection.MAIN_MENU) {
-                            currentSection = SettingsSection.MAIN_MENU
-                        } else {
-                            viewModel.navigateBack()
-                        }
-                    }) {
+                    IconButton(
+                        onClick = {
+                            if (currentSection != SettingsSection.MAIN_MENU) {
+                                currentSection = SettingsSection.MAIN_MENU
+                            } else {
+                                viewModel.navigateBack()
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF3B3C3E)) // MUSE-REF Circular back button #3B3C3E
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = palette.textPrimary // BG-FIX
+                            tint = palette.textPrimary, // MUSE-REF
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = palette.surface // BG-FIX
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = palette.surface // MUSE-REF Top bar blends seamlessly with background
                 )
             )
         }
@@ -180,9 +335,23 @@ fun SettingsScreen(
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState()),
                         themeName = themeName,
+                        accentHex = accentHex,
+                        currentSettings = currentSettings,
+                        stashDbKey = stashDbKey,
                         rdKeyConfigured = rdKey.isNotBlank() || torboxKey.isNotBlank(),
-                        betaTestActive = currentSettings.betaTestPrivacy,
-                        onNavigateTo = { currentSection = it }
+                        onNavigateTo = { currentSection = it },
+                        onToggleCards = {
+                            viewModel.updateSettings(currentSettings.copy(showManagementCards = it))
+                        },
+                        onToggleGestures = {
+                            viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
+                        },
+                        onToggleBetaTest = {
+                            viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it))
+                        },
+                        onToggleUncached = {
+                            viewModel.updateSettings(currentSettings.copy(allowUncachedDownloads = it))
+                        }
                     )
                 }
                 SettingsSection.DISPLAY -> {
@@ -191,7 +360,7 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         themeName = themeName,
                         onThemeChange = {
                             themeName = it
@@ -222,7 +391,7 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         betaTestPrivacy = currentSettings.betaTestPrivacy,
                         onBetaTestPrivacyChange = {
                             viewModel.updateSettings(currentSettings.copy(betaTestPrivacy = it))
@@ -235,8 +404,8 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp) // MUSE-REF
                     ) {
                         IntegrationsDropdownDebridSection(
                             modifier = Modifier.fillMaxWidth(),
@@ -260,15 +429,10 @@ fun SettingsScreen(
                             }
                         )
 
-                        // Metadata Card (StashDB)
-                        Card(
-                            shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-                            border = BorderStroke(1.dp, palette.border), // BG-FIX
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        // MUSE-REF: Metadata Card in Grouped Card format
+                        GroupedCard {
                             Column(
-                                modifier = Modifier.padding(16.dp),
+                                modifier = Modifier.padding(20.dp), // MUSE-REF
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Text(
@@ -277,7 +441,7 @@ fun SettingsScreen(
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.SemiBold
                                     ),
-                                    color = palette.textPrimary // BG-FIX
+                                    color = palette.textPrimary // MUSE-REF
                                 )
 
                                 Row(
@@ -289,14 +453,14 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.Key,
                                             contentDescription = null,
-                                            tint = accent, // BG-FIX
+                                            tint = accent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "StashDB API Key",
                                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                            color = palette.textPrimary // BG-FIX
+                                            color = palette.textPrimary // MUSE-REF
                                         )
                                     }
 
@@ -334,7 +498,7 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.Key,
                                             contentDescription = null,
-                                            tint = accent, // BG-FIX
+                                            tint = accent,
                                             modifier = Modifier
                                                 .padding(start = 10.dp)
                                                 .size(22.dp)
@@ -366,7 +530,7 @@ fun SettingsScreen(
                                 ) {
                                     Text(
                                         text = "Get API key from stashdb.org profile",
-                                        color = palette.textSecondary, // BG-FIX
+                                        color = palette.textSecondary, // MUSE-REF
                                         fontSize = 12.sp
                                     )
                                 }
@@ -397,7 +561,7 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         onExportJson = { viewModel.exportDataJson() },
                         onImportJson = { jsonStr -> viewModel.importJsonData(jsonStr) }
                     )
@@ -408,7 +572,7 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         enableVideoPlayerGestures = currentSettings.enableVideoPlayerGestures,
                         onEnableVideoPlayerGesturesChange = {
                             viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
@@ -421,7 +585,7 @@ fun SettingsScreen(
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         sampleDataStatus = sampleDataStatus,
                         accentColor = accent,
                         onLoadSample = {
@@ -441,312 +605,258 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * MUSE-REF: Main Settings Menu organized in 6 distinct Grouped Cards:
+ * [Appearance & Colors] [Playback & Downloads] [Data & Backup] [StashDB] [Advanced] [About]
+ */
 @Composable
 private fun SettingsMainMenu(
     modifier: Modifier = Modifier,
     themeName: String,
+    accentHex: String,
+    currentSettings: SettingsEntity,
+    stashDbKey: String,
     rdKeyConfigured: Boolean,
-    betaTestActive: Boolean,
-    onNavigateTo: (SettingsSection) -> Unit
+    onNavigateTo: (SettingsSection) -> Unit,
+    onToggleCards: (Boolean) -> Unit,
+    onToggleGestures: (Boolean) -> Unit,
+    onToggleBetaTest: (Boolean) -> Unit,
+    onToggleUncached: (Boolean) -> Unit
 ) {
-    val palette = LocalVaultPalette.current // BG-FIX
-    Column(modifier = modifier) {
-        // Native Android Preferences style items with Custom Redesigned Icons
-        SettingsPreferenceItem(
-            iconRes = R.drawable.ic_settings_display,
-            title = "Display",
-            summary = "Theme ($themeName), Transitions, Color Palette",
-            onClick = { onNavigateTo(SettingsSection.DISPLAY) }
-        )
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        // 1. [Appearance & Colors]
+        SettingsSectionHeader(text = "Appearance & Colors") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "Theme",
+                subtitle = themeName,
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Accent & Color Palette",
+                subtitle = accentHex.replace("_", " ").replaceFirstChar { it.uppercase() },
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Transition Animation",
+                subtitle = when (currentSettings.transitionStyle) {
+                    1 -> "Lateral Slide"
+                    2 -> "Smooth Fade & Scale"
+                    3 -> "Link Transition"
+                    else -> "Dynamic Vertical"
+                },
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Cards Layout",
+                subtitle = "Display cards for Actors and Studios management",
+                trailing = {
+                    Switch(
+                        checked = currentSettings.showManagementCards,
+                        onCheckedChange = onToggleCards,
+                        colors = museSwitchColors(), // MUSE-REF
+                        modifier = Modifier.testTag("cards_management_switch")
+                    )
+                },
+                onClick = { onToggleCards(!currentSettings.showManagementCards) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "App Icons",
+                subtitle = "Customize app launcher icon style",
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.DISPLAY) }
+            )
+        }
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
+        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        SettingsPreferenceItem(
-            iconRes = R.drawable.ic_settings_privacy,
-            title = "Privacy",
-            summary = if (betaTestActive) "Beta Test (Active - Content Blurred)" else "Beta Test image privacy controls",
-            onClick = { onNavigateTo(SettingsSection.PRIVACY) }
-        )
+        // 2. [Playback & Downloads]
+        SettingsSectionHeader(text = "Playback & Downloads") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "Debrid Services",
+                subtitle = if (rdKeyConfigured) "Real-Debrid / Torbox Active" else "Real-Debrid & Torbox",
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Allow Uncached Downloads",
+                subtitle = "Stream torrents through Debrid while downloading",
+                trailing = {
+                    Switch(
+                        checked = currentSettings.allowUncachedDownloads,
+                        onCheckedChange = onToggleUncached,
+                        colors = museSwitchColors() // MUSE-REF
+                    )
+                },
+                onClick = { onToggleUncached(!currentSettings.allowUncachedDownloads) }
+            )
+        }
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
+        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        SettingsPreferenceItem(
-            iconRes = R.drawable.ic_settings_integrations,
-            title = "Integrations",
-            summary = if (rdKeyConfigured) "Real-Debrid / Torbox (Active)" else "Real-Debrid, Torbox Debrid Services",
-            onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
-        )
+        // 3. [Data & Backup]
+        SettingsSectionHeader(text = "Data & Backup") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "Data & Backup",
+                subtitle = "Export & Import JSON database backups",
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
+            )
+        }
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
+        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        SettingsPreferenceItem(
-            iconRes = R.drawable.ic_settings_backup,
-            title = "Data & Backup",
-            summary = "Export & Import JSON database backups",
-            onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
-        )
+        // 4. [StashDB]
+        SettingsSectionHeader(text = "StashDB") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "StashDB API Key",
+                subtitle = if (stashDbKey.isNotBlank()) "Configured ••••••••" else "Add your API token to search scenes & performers",
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
+            )
+        }
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
+        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        SettingsPreferenceItem(
-            iconRes = R.drawable.ic_settings_advanced,
-            title = "Advanced",
-            summary = "Video gestures, player controls & overlay settings",
-            onClick = { onNavigateTo(SettingsSection.ADVANCED) }
-        )
+        // 5. [Advanced]
+        SettingsSectionHeader(text = "Advanced") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "Player Gestures",
+                subtitle = "Control volume and brightness by vertical swipes in player",
+                trailing = {
+                    Switch(
+                        checked = currentSettings.enableVideoPlayerGestures,
+                        onCheckedChange = onToggleGestures,
+                        colors = museSwitchColors() // MUSE-REF
+                    )
+                },
+                onClick = { onToggleGestures(!currentSettings.enableVideoPlayerGestures) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Beta Test Privacy",
+                subtitle = "Apply smart privacy blur to all media images",
+                trailing = {
+                    Switch(
+                        checked = currentSettings.betaTestPrivacy,
+                        onCheckedChange = onToggleBetaTest,
+                        colors = museSwitchColors(), // MUSE-REF
+                        modifier = Modifier.testTag("beta_test_privacy_switch")
+                    )
+                },
+                onClick = { onToggleBetaTest(!currentSettings.betaTestPrivacy) }
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Sample Dataset",
+                subtitle = "Load realistic sample data or clean database",
+                trailing = { SettingsNavigationChevron() },
+                onClick = { onNavigateTo(SettingsSection.SAMPLE_DATA) }
+            )
+        }
 
-        HorizontalDivider(modifier = Modifier.padding(start = 72.dp), color = palette.border.copy(alpha = 0.3f)) // BG-FIX
+        Spacer(modifier = Modifier.height(20.dp)) // MUSE-REF
 
-        SettingsPreferenceItem(
-            iconRes = R.drawable.ic_settings_sample_data,
-            title = "Sample dataset",
-            summary = "Load or clean removable demo data",
-            onClick = { onNavigateTo(SettingsSection.SAMPLE_DATA) }
-        )
+        // 6. [About]
+        SettingsSectionHeader(text = "About") // MUSE-REF
+        GroupedCard {
+            SettingsRow(
+                title = "Goony Vault",
+                subtitle = "Version 1.0.0 (Build 42)",
+                trailing = null,
+                onClick = null
+            )
+            SettingsDivider()
+            SettingsRow(
+                title = "Design System",
+                subtitle = "Material 3 • Grouped Cards Reference",
+                trailing = null,
+                onClick = null
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
+/**
+ * MUSE-REF: Advanced Section in Grouped Card format
+ */
 @Composable
 private fun SettingsAdvancedSection(
     modifier: Modifier = Modifier,
     enableVideoPlayerGestures: Boolean,
     onEnableVideoPlayerGesturesChange: (Boolean) -> Unit
 ) {
-    val palette = LocalVaultPalette.current
-    val accent = LocalAccentColor.current
-
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-            border = BorderStroke(1.dp, palette.border), // BG-FIX
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text(
-                    text = "Player Gestures",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = palette.textPrimary // BG-FIX
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                        Text(
-                            text = "Brightness & Volume Gestures",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = palette.textPrimary // BG-FIX
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.textSecondary // BG-FIX
-                        )
-                    }
+        GroupedCard {
+            SettingsRow(
+                title = "Brightness & Volume Gestures",
+                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
+                trailing = {
                     Switch(
                         checked = enableVideoPlayerGestures,
                         onCheckedChange = onEnableVideoPlayerGesturesChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = accent
-                        )
+                        colors = museSwitchColors() // MUSE-REF
                     )
-                }
-            }
+                },
+                onClick = { onEnableVideoPlayerGesturesChange(!enableVideoPlayerGestures) }
+            )
         }
     }
 }
 
+/**
+ * MUSE-REF: Privacy Section in Grouped Card format
+ */
 @Composable
 private fun SettingsPrivacySection(
     modifier: Modifier = Modifier,
     betaTestPrivacy: Boolean,
     onBetaTestPrivacyChange: (Boolean) -> Unit
 ) {
-    val palette = LocalVaultPalette.current
-    val accent = LocalAccentColor.current
-
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-            border = BorderStroke(1.dp, palette.border), // BG-FIX
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = accent.copy(alpha = 0.15f),
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_settings_privacy),
-                                contentDescription = null,
-                                tint = accent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Column {
-                        Text(
-                            text = "Privacy Controls",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = palette.textPrimary // BG-FIX
-                        )
-                        Text(
-                            text = "Manage media visibility and privacy filters",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.textSecondary // BG-FIX
-                        )
-                    }
-                }
-
-                HorizontalDivider(color = palette.border.copy(alpha = 0.5f))
-
-                // Beta Test Option
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable { onBetaTestPrivacyChange(!betaTestPrivacy) }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Beta Test",
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = palette.textPrimary // BG-FIX
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = accent.copy(alpha = 0.18f)
-                            ) {
-                                Text(
-                                    text = "BETA",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = accent,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.textSecondary, // BG-FIX
-                            lineHeight = 18.sp
-                        )
-                    }
-
+        GroupedCard {
+            SettingsRow(
+                title = "Beta Test",
+                subtitle = "Loads all media seamlessly in the app while applying a smart privacy blur to obscure image content across all screens.",
+                trailing = {
                     Switch(
                         checked = betaTestPrivacy,
                         onCheckedChange = onBetaTestPrivacyChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = accent,
-                            uncheckedThumbColor = palette.textMuted,
-                            uncheckedTrackColor = palette.skeletonBg // BG-FIX
-                        ),
+                        colors = museSwitchColors(), // MUSE-REF
                         modifier = Modifier.testTag("beta_test_privacy_switch")
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsPreferenceItem(
-    iconRes: Int,
-    title: String,
-    summary: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val palette = LocalVaultPalette.current // BG-FIX
-    Surface(
-        onClick = onClick,
-        color = Color.Transparent,
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 18.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = null,
-                tint = palette.textSecondary, // BG-FIX
-                modifier = Modifier.size(24.dp)
-            )
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 17.sp
-                    ),
-                    color = palette.textPrimary // BG-FIX
-                )
-                if (summary.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = summary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = palette.textSecondary // BG-FIX
-                    )
-                }
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
-                contentDescription = null,
-                tint = palette.textSecondary.copy(alpha = 0.4f), // BG-FIX
-                modifier = Modifier.size(14.dp)
+                },
+                onClick = { onBetaTestPrivacyChange(!betaTestPrivacy) }
             )
         }
     }
 }
 
+/**
+ * MUSE-REF: Display Section in Grouped Card format
+ */
 @Composable
 private fun SettingsDisplaySection(
     modifier: Modifier = Modifier,
@@ -762,20 +872,15 @@ private fun SettingsDisplaySection(
     onTransitionStyleChange: (Int) -> Unit
 ) {
     val palette = LocalVaultPalette.current
-    val accent = LocalAccentColor.current
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp) // MUSE-REF
     ) {
-        // Theme selection (Native UI with Dark, Amoled, Light)
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-            border = BorderStroke(1.dp, palette.border) // BG-FIX
-        ) {
+        // Theme selection (Native UI with Dark, Amoled, Light) in Grouped Card
+        GroupedCard {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp), // MUSE-REF
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
@@ -784,7 +889,7 @@ private fun SettingsDisplaySection(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = palette.textPrimary // BG-FIX
+                    color = palette.textPrimary // MUSE-REF
                 )
 
                 NativeThemeSelector(
@@ -794,14 +899,10 @@ private fun SettingsDisplaySection(
             }
         }
 
-        // Transition Animation selection (Default Motion, Lateral Slide, Smooth Fade & Scale)
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-            border = BorderStroke(1.dp, palette.border) // BG-FIX
-        ) {
+        // Transition Animation selection in Grouped Card
+        GroupedCard {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp), // MUSE-REF
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
@@ -810,7 +911,7 @@ private fun SettingsDisplaySection(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = palette.textPrimary // BG-FIX
+                    color = palette.textPrimary // MUSE-REF
                 )
 
                 NativeTransitionSelector(
@@ -820,50 +921,26 @@ private fun SettingsDisplaySection(
             }
         }
 
-        // Cards layout toggle for Actors and Studios management
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-            border = BorderStroke(1.dp, palette.border) // BG-FIX
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Cards",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = palette.textPrimary // BG-FIX
+        // Cards layout toggle in Grouped Card
+        GroupedCard {
+            SettingsRow(
+                title = "Cards Layout",
+                subtitle = "Display cards for Actors and Studios management",
+                trailing = {
+                    Switch(
+                        checked = showCards,
+                        onCheckedChange = onShowCardsChange,
+                        colors = museSwitchColors(), // MUSE-REF
+                        modifier = Modifier.testTag("cards_management_switch")
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        "Display cards for Actors and Studios management",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = palette.textSecondary // BG-FIX
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Switch(
-                    checked = showCards,
-                    onCheckedChange = onShowCardsChange,
-                    modifier = Modifier.testTag("cards_management_switch")
-                )
-            }
+                },
+                onClick = { onShowCardsChange(!showCards) }
+            )
         }
 
-        // App Icon Style Picker
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
-        ) {
-            Box(modifier = Modifier.padding(16.dp)) {
+        // App Icon Style Picker in Grouped Card
+        GroupedCard {
+            Box(modifier = Modifier.padding(20.dp)) { // MUSE-REF
                 IconStylePicker(
                     selectedIndex = appIconStyle,
                     onSelectIconStyle = onAppIconStyleChange
@@ -871,12 +948,9 @@ private fun SettingsDisplaySection(
             }
         }
 
-        // Color Palette (Material You 3-split circular palette picker)
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg) // BG-FIX
-        ) {
-            Box(modifier = Modifier.padding(16.dp)) {
+        // Color Palette in Grouped Card
+        GroupedCard {
+            Box(modifier = Modifier.padding(20.dp)) { // MUSE-REF
                 ColorPalettePicker(
                     selectedId = accentHex,
                     onSelectPalette = onAccentChange
@@ -944,9 +1018,8 @@ private fun IconStylePicker(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val accent = LocalAccentColor.current
-    val palette = LocalVaultPalette.current // BG-FIX
+    val palette = LocalVaultPalette.current // MUSE-REF
     val options = listOf(
-        // BG-FIX-KEPT: Hardcoded preview colors represent real app icon styles, not theme colors.
         Triple("Inverted", Color(0xFFF3F4F6), Color.Black),
         Triple("Default", Color(0xFF58595e), Color.White),
         Triple("Blue", Color(0xFF3B82F6), Color.White),
@@ -964,7 +1037,7 @@ private fun IconStylePicker(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             ),
-            color = palette.textPrimary // BG-FIX
+            color = palette.textPrimary // MUSE-REF
         )
 
         Row(
@@ -989,13 +1062,13 @@ private fun IconStylePicker(
                             )
                             .border(
                                 width = if (isSelected) 2.5.dp else 1.dp,
-                                color = if (isSelected) accent else palette.border.copy(alpha = 0.3f), // BG-FIX
+                                color = if (isSelected) accent else palette.border.copy(alpha = 0.3f), // MUSE-REF
                                 shape = CircleShape
                             )
                             .clickable {
                                 onSelectIconStyle(index)
                                 switchAppIcon(context, index)
-                             },
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -1019,7 +1092,7 @@ private fun IconStylePicker(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 11.sp
                         ),
-                        color = if (isSelected) accent else palette.textSecondary // BG-FIX
+                        color = if (isSelected) accent else palette.textSecondary // MUSE-REF
                     )
                 }
             }
@@ -1027,6 +1100,9 @@ private fun IconStylePicker(
     }
 }
 
+/**
+ * MUSE-REF: Sample Data Section in Grouped Card format
+ */
 @Composable
 private fun SettingsSampleDataSection(
     modifier: Modifier = Modifier,
@@ -1035,30 +1111,26 @@ private fun SettingsSampleDataSection(
     onLoadSample: () -> Unit,
     onClearSample: () -> Unit
 ) {
-    val palette = LocalVaultPalette.current // BG-FIX
+    val palette = LocalVaultPalette.current // MUSE-REF
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg), // BG-FIX
-            border = BorderStroke(1.dp, palette.border) // BG-FIX
-        ) {
+        GroupedCard {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(20.dp), // MUSE-REF
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
                     "Sample dataset management",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = palette.textPrimary // BG-FIX
+                    color = palette.textPrimary // MUSE-REF
                 )
                 Text(
                     "Load realistic sample data (studios, actors, scenes with magnets) or clean them completely from the database",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = palette.textSecondary // BG-FIX
+                    color = palette.textSecondary // MUSE-REF
                 )
 
                 Row(
@@ -1092,7 +1164,7 @@ private fun SettingsSampleDataSection(
                     Text(
                         sampleDataStatus,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.tertiary // BG-FIX
+                        color = MaterialTheme.colorScheme.tertiary // MUSE-REF
                     )
                 }
             }

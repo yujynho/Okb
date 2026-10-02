@@ -23,10 +23,10 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 enum class SortMode {
-    CARD_NEWEST,      // New (تاريخ الكرت - أحدث)
-    CARD_OLDEST,      // Old (تاريخ الكرت - أقدم)
-    RECENTLY_ADDED,   // أضيفت مؤخراً (تاريخ الإضافة للتطبيق - أحدث)
-    OLDEST_ADDED,     // أضيفت قديماً (تاريخ الإضافة للتطبيق - أقدم)
+    CARD_NEWEST,      // New (Card Date - Newest)
+    CARD_OLDEST,      // Old (Card Date - Oldest)
+    RECENTLY_ADDED,   // Recently Added (Added to app date - Newest)
+    OLDEST_ADDED,     // Oldest Added (Added to app date - Oldest)
     NEWEST,           // Backward compatibility (maps to CARD_NEWEST)
     OLDEST,           // Backward compatibility (maps to CARD_OLDEST)
     TITLE_AZ,

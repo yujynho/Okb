@@ -27,14 +27,14 @@ open class VaultThemePalette(
 
     object Dark : VaultThemePalette(
         name = "Dark",
-        bg = Color(0xFF28282D),
-        surface = Color(0xFF28282D),
-        cardBg = Color(0xFF383842),
+        bg = Color(0xFF1F1F1F),          // MUSE-REF Page background — from visual reference
+        surface = Color(0xFF1F1F1F),     // MUSE-REF Top bar blends with background
+        cardBg = Color(0xFF353638),      // MUSE-REF Card surface — from visual reference
         textPrimary = Color(0xFFFFFFFF),
-        textSecondary = Color(0xFFD1D5DB),
-        textMuted = Color(0xFF9CA3AF),
-        border = Color(0x2EFFFFFF),
-        skeletonBg = Color(0xFF404048)
+        textSecondary = Color(0xFFABABAF), // MUSE-REF Neutral light gray
+        textMuted = Color(0xFF7C7C80),
+        border = Color(0x1AFFFFFF),      // MUSE-REF White 10% — matches #4E4F51 on card
+        skeletonBg = Color(0xFF2A2A2C)   // MUSE-REF Between bg and cardBg
     )
 
     object Amoled : VaultThemePalette(
