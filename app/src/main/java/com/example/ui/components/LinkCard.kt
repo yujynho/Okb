@@ -87,6 +87,7 @@ fun LinkCard(
     actorsMap: Map<String, String> = emptyMap(),
     studiosMap: Map<String, String> = emptyMap(),
     fullActorsMap: Map<String, ActorEntity> = emptyMap(),
+    preferredActorId: String? = null,
     isBookmarked: Boolean = false,
     isActiveCard: Boolean = false,
     onActivate: () -> Unit = {},
@@ -622,10 +623,10 @@ fun LinkCard(
                                             )
                                         } else {
                                             Icon(
-                                                imageVector = Icons.Default.AccountCircle,
+                                                painter = painterResource(id = R.drawable.ic_nav_actor),
                                                 contentDescription = null,
-                                                tint = palette.textMuted,
-                                                modifier = Modifier.size(32.dp)
+                                                tint = palette.textSecondary.copy(alpha = 0.9f),
+                                                modifier = Modifier.size(28.dp)
                                             )
                                         }
 
@@ -771,7 +772,20 @@ fun LinkCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (link.actorIds.isEmpty()) {
+                        val mainActorId = remember(link.actorIds, preferredActorId, fullActorsMap) {
+                            if (!preferredActorId.isNullOrBlank()) {
+                                link.actorIds.firstOrNull { id ->
+                                    id.equals(preferredActorId, ignoreCase = true) ||
+                                    id == fullActorsMap[preferredActorId]?.id ||
+                                    fullActorsMap[id]?.id?.equals(preferredActorId, ignoreCase = true) == true ||
+                                    fullActorsMap[id]?.name?.equals(preferredActorId, ignoreCase = true) == true
+                                } ?: link.actorIds.firstOrNull()
+                            } else {
+                                link.actorIds.firstOrNull()
+                            }
+                        }
+
+                        if (mainActorId == null) {
                             Text(
                                 text = "Scene",
                                 style = MaterialTheme.typography.titleMedium.copy(
@@ -784,10 +798,9 @@ fun LinkCard(
                                 modifier = Modifier.weight(1f, fill = false)
                             )
                         } else {
-                            val firstActorId = link.actorIds[0]
-                            val firstActorEntity = fullActorsMap[firstActorId] ?: fullActorsMap[firstActorId.trim().lowercase()]
-                            val firstActorName = actorsMap[firstActorId] ?: firstActorEntity?.name ?: firstActorId
-                            val realActorId = firstActorEntity?.id ?: firstActorId
+                            val firstActorEntity = fullActorsMap[mainActorId] ?: fullActorsMap[mainActorId.trim().lowercase()]
+                            val firstActorName = actorsMap[mainActorId] ?: firstActorEntity?.name ?: mainActorId
+                            val realActorId = firstActorEntity?.id ?: mainActorId
 
                             Row(
                                 modifier = Modifier.weight(1f, fill = false),

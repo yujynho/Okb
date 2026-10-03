@@ -597,6 +597,7 @@ fun HomeScreen(
                             actorsMap = actorsMap,
                             studiosMap = studiosMap,
                             fullActorsMap = fullActorsMap,
+                            preferredActorId = targetActor?.id ?: targetActor?.name,
                             isBookmarked = isBookmarked,
                             isActiveCard = isActive,
                             onActivate = { activeOverlayCardId = link.id },

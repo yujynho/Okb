@@ -751,10 +751,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val newStudiosMap = mutableMapOf<String, StudioEntity>()
             val linksToInsert = mutableListOf<LinkEntity>()
 
+            val selectedPerf = _stashSelectedPerformer.value
+
             for (scene in scenesToSave) {
-                // 1. Process female performers
+                // 1. Process female performers (Place selected/searched performer at index 0)
+                val sortedPerformers = if (selectedPerf != null) {
+                    val matching = scene.femalePerformers.filter { 
+                        it.id == selectedPerf.id || it.name.trim().equals(selectedPerf.name.trim(), ignoreCase = true) 
+                    }
+                    val others = scene.femalePerformers.filterNot { 
+                        it.id == selectedPerf.id || it.name.trim().equals(selectedPerf.name.trim(), ignoreCase = true) 
+                    }
+                    matching + others
+                } else {
+                    scene.femalePerformers
+                }
+
                 val actorIds = mutableListOf<String>()
-                for (perf in scene.femalePerformers) {
+                for (perf in sortedPerformers) {
                     val pName = perf.name.trim()
                     if (pName.isBlank()) continue
 
@@ -824,8 +838,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         stashDbId = scene.id,
                         title = scene.title,
                         coverImage = if (existingLink.coverImage.isBlank()) (scene.coverUrl ?: "") else existingLink.coverImage,
-                        actorIds = (existingLink.actorIds + actorIds).distinct(),
-                        studioIds = (existingLink.studioIds + studioIds).distinct(),
+                        actorIds = (actorIds + existingLink.actorIds).distinct(),
+                        studioIds = (studioIds + existingLink.studioIds).distinct(),
                         assignedDate = existingLink.assignedDate ?: parsedDate
                     )
                 } else {

@@ -732,149 +732,98 @@ fun StashDbScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    if (isLoadingScenes) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(6) {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = palette.surface),
-                                    border = BorderStroke(0.6.dp, palette.border.copy(alpha = 0.18f))
-                                ) {
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        // 16:9 Cover Skeleton
-                                        Box(
+                    Crossfade(
+                        targetState = isLoadingScenes,
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        label = "stash_scenes_loading_crossfade"
+                    ) { loading ->
+                        if (loading) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxSize(),
+                                userScrollEnabled = false
+                            ) {
+                                items(6) {
+                                    StashGridSkeletonCard()
+                                }
+                            }
+                        } else if (scenesList.isNotEmpty()) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                state = gridState,
+                                contentPadding = PaddingValues(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(nestedScrollConnection)
+                            ) {
+                                items(scenesList, key = { it.id }) { scene ->
+                                    val isSelected = selectedSceneIds.contains(scene.id)
+                                    val isAlreadySaved = (scene.id in savedStashDbIds) || (scene.title.trim().lowercase() in savedTitles)
+
+                                    StashGridPhotoCard(
+                                        scene = scene,
+                                        isSelected = isSelected,
+                                        isAlreadySaved = isAlreadySaved,
+                                        onToggleSelect = {
+                                            viewModel.toggleStashSceneSelection(scene.id)
+                                        }
+                                    )
+                                }
+
+                                if (isLoadingMore) {
+                                    item(span = { GridItemSpan(2) }) {
+                                        Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .aspectRatio(16f / 9f)
-                                                .adaptiveSkeleton(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                                        )
-                                        // Title & metadata skeleton container matching exact StashGridPhotoCard layout
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                                                .padding(vertical = 16.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(0.82f)
-                                                    .height(13.dp)
-                                                    .adaptiveSkeleton(RoundedCornerShape(4.dp))
+                                            SmoothProgressIndicator(
+                                                color = accent,
+                                                modifier = Modifier.size(20.dp),
+                                                strokeWidth = 2.dp
                                             )
-                                            HorizontalDivider(
-                                                color = palette.border.copy(alpha = 0.35f),
-                                                thickness = 0.5.dp,
-                                                modifier = Modifier.padding(vertical = 1.dp)
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = "Loading more scenes...",
+                                                color = palette.textSecondary,
+                                                fontSize = 13.sp
                                             )
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Box(modifier = Modifier.size(13.dp).adaptiveSkeleton(CircleShape))
-                                                Box(modifier = Modifier.fillMaxWidth(0.65f).height(10.dp).adaptiveSkeleton(RoundedCornerShape(3.dp)))
-                                            }
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Box(modifier = Modifier.size(13.dp).adaptiveSkeleton(CircleShape))
-                                                Box(modifier = Modifier.fillMaxWidth(0.50f).height(10.dp).adaptiveSkeleton(RoundedCornerShape(3.dp)))
-                                            }
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Box(modifier = Modifier.size(13.dp).adaptiveSkeleton(CircleShape))
-                                                Box(modifier = Modifier.fillMaxWidth(0.38f).height(10.dp).adaptiveSkeleton(RoundedCornerShape(3.dp)))
-                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    } else if (scenesList.isNotEmpty()) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            state = gridState,
-                            contentPadding = PaddingValues(10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .nestedScroll(nestedScrollConnection)
-                        ) {
-                            items(scenesList, key = { it.id }) { scene ->
-                                val isSelected = selectedSceneIds.contains(scene.id)
-                                val isAlreadySaved = (scene.id in savedStashDbIds) || (scene.title.trim().lowercase() in savedTitles)
-
-                                StashGridPhotoCard(
-                                    scene = scene,
-                                    isSelected = isSelected,
-                                    isAlreadySaved = isAlreadySaved,
-                                    onToggleSelect = {
-                                        viewModel.toggleStashSceneSelection(scene.id)
-                                    }
+                        } else if (searchQuery.isNotBlank() && !isSearchingTarget) {
+                            EmptyStateView(
+                                icon = Icons.Default.SearchOff,
+                                title = "No Scenes Available",
+                                subtitle = "Select another result from the top row or try a new search query."
+                            )
+                        } else {
+                            AnimatedContent(
+                                targetState = activeType,
+                                transitionSpec = {
+                                    (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                            slideInHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) it / 6 else -it / 6 })
+                                        .togetherWith(
+                                            fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
+                                                    slideOutHorizontally(animationSpec = tween(180, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) -it / 6 else it / 6 }
+                                        )
+                                },
+                                label = "stash_empty_state_anim"
+                            ) { type ->
+                                EmptyStateView(
+                                    icon = if (type == StashSearchType.ACTORS) Icons.Outlined.Person else Icons.Outlined.Videocam,
+                                    title = if (type == StashSearchType.ACTORS) "Search Actor & Explore Scenes" else "Search Studio & Explore Scenes",
+                                    subtitle = "Tap the search icon in the header, type a name, and tap the search icon to search. Click any scene to select, then tap the checkmark in the header to save."
                                 )
                             }
-
-                            if (isLoadingMore) {
-                                item(span = { GridItemSpan(2) }) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        SmoothProgressIndicator(
-                                            color = accent,
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Text(
-                                            text = "Loading more scenes...",
-                                            color = palette.textSecondary,
-                                            fontSize = 13.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else if (searchQuery.isNotBlank() && !isSearchingTarget) {
-                        EmptyStateView(
-                            icon = Icons.Default.SearchOff,
-                            title = "No Scenes Available",
-                            subtitle = "Select another result from the top row or try a new search query."
-                        )
-                    } else {
-                        AnimatedContent(
-                            targetState = activeType,
-                            transitionSpec = {
-                                (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                                        slideInHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) it / 6 else -it / 6 })
-                                    .togetherWith(
-                                        fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
-                                                slideOutHorizontally(animationSpec = tween(180, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) -it / 6 else it / 6 }
-                                    )
-                            },
-                            label = "stash_empty_state_anim"
-                        ) { type ->
-                            EmptyStateView(
-                                icon = if (type == StashSearchType.ACTORS) Icons.Outlined.Person else Icons.Outlined.Videocam,
-                                title = if (type == StashSearchType.ACTORS) "Search Actor & Explore Scenes" else "Search Studio & Explore Scenes",
-                                subtitle = "Tap the search icon in the header, type a name, and tap the search icon to search. Click any scene to select, then tap the checkmark in the header to save."
-                            )
                         }
                     }
                 }
@@ -1120,6 +1069,87 @@ fun HorizontalStudioCircleItem(
 }
 
 /**
+ * 1:1 Pixel-Matched Skeleton Card for StashDB Scene Grid:
+ * - Exact 16:9 Cover Skeleton
+ * - Exact padding, spacing, line heights, divider, and icon dimensions
+ * - Eliminates Layout Shift / jump when real cards load
+ */
+@Composable
+fun StashGridSkeletonCard(
+    modifier: Modifier = Modifier
+) {
+    val palette = LocalVaultPalette.current
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = palette.cardBg),
+        border = null
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 1. Exact 16:9 Cover Skeleton
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .adaptiveSkeleton(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            )
+            // 2. Exact Title & metadata skeleton container matching StashGridPhotoCard pixel-for-pixel
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = palette.cardBg,
+                        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                // Title (Matches 12.5sp bold single line with line-height ~ 18dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(17.dp)
+                        .adaptiveSkeleton(RoundedCornerShape(4.dp))
+                )
+                // Divider line below title (Matches exact 0.5dp thickness and 1dp vertical padding)
+                HorizontalDivider(
+                    color = palette.border.copy(alpha = 0.35f),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(vertical = 1.dp)
+                )
+                // Row 1: Actor Icon (13.5dp) + Actor text placeholder (14dp height)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.size(13.5.dp).adaptiveSkeleton(CircleShape))
+                    Box(modifier = Modifier.fillMaxWidth(0.65f).height(14.dp).adaptiveSkeleton(RoundedCornerShape(3.dp)))
+                }
+                // Row 2: Studio Icon (13.5dp) + Studio text placeholder (14dp height)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.size(13.5.dp).adaptiveSkeleton(CircleShape))
+                    Box(modifier = Modifier.fillMaxWidth(0.48f).height(14.dp).adaptiveSkeleton(RoundedCornerShape(3.dp)))
+                }
+                // Row 3: Calendar Icon (13.5dp) + Date text placeholder (14dp height)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.size(13.5.dp).adaptiveSkeleton(CircleShape))
+                    Box(modifier = Modifier.fillMaxWidth(0.35f).height(14.dp).adaptiveSkeleton(RoundedCornerShape(3.dp)))
+                }
+            }
+        }
+    }
+}
+
+/**
  * 2-Cards-Per-Row Scene Card matching the exact screenshot layout:
  * - Smooth entrance slide-up + fade-in animation
  * - Rounded corners (16.dp)
@@ -1191,13 +1221,13 @@ fun StashGridPhotoCard(
         border = null
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // 1. Cover Image Box: Fixed 16:9 aspect ratio, no border around it
+            // 1. Cover Image Box: Fixed 16:9 aspect ratio with adaptiveSkeleton placeholder
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(Color.Transparent), // BG-FIX
+                    .adaptiveSkeleton(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (!scene.coverUrl.isNullOrBlank()) {
@@ -1289,55 +1319,53 @@ fun StashGridPhotoCard(
                         shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                     )
                     .drawBehind {
-                        val cornerRadiusPx = 16.dp.toPx()
-                        val strokeWidth = (0.6f + 1.4f * selectionProgress).dp.toPx()
-                        val halfStroke = strokeWidth / 2f
+                        if (selectionProgress > 0.05f) {
+                            val cornerRadiusPx = 16.dp.toPx()
+                            val strokeWidth = (0.6f + 1.4f * selectionProgress).dp.toPx()
+                            val halfStroke = strokeWidth / 2f
 
-                        uPath.reset()
-                        uPath.moveTo(halfStroke, 0f)
-                        uPath.lineTo(halfStroke, size.height - cornerRadiusPx)
-                        uPath.arcTo(
-                            rect = Rect(
-                                left = halfStroke,
-                                top = size.height - 2 * cornerRadiusPx + halfStroke,
-                                right = 2 * cornerRadiusPx - halfStroke,
-                                bottom = size.height - halfStroke
-                            ),
-                            startAngleDegrees = 180f,
-                            sweepAngleDegrees = -90f,
-                            forceMoveTo = false
-                        )
-                        uPath.lineTo(size.width - cornerRadiusPx, size.height - halfStroke)
-                        uPath.arcTo(
-                            rect = Rect(
-                                left = size.width - 2 * cornerRadiusPx + halfStroke,
-                                top = size.height - 2 * cornerRadiusPx + halfStroke,
-                                right = size.width - halfStroke,
-                                bottom = size.height - halfStroke
-                            ),
-                            startAngleDegrees = 90f,
-                            sweepAngleDegrees = -90f,
-                            forceMoveTo = false
-                        )
-                        uPath.lineTo(size.width - halfStroke, 0f)
+                            uPath.reset()
+                            uPath.moveTo(halfStroke, 0f)
+                            uPath.lineTo(halfStroke, size.height - cornerRadiusPx)
+                            uPath.arcTo(
+                                rect = Rect(
+                                    left = halfStroke,
+                                    top = size.height - 2 * cornerRadiusPx + halfStroke,
+                                    right = 2 * cornerRadiusPx - halfStroke,
+                                    bottom = size.height - halfStroke
+                                ),
+                                startAngleDegrees = 180f,
+                                sweepAngleDegrees = -90f,
+                                forceMoveTo = false
+                            )
+                            uPath.lineTo(size.width - cornerRadiusPx, size.height - halfStroke)
+                            uPath.arcTo(
+                                rect = Rect(
+                                    left = size.width - 2 * cornerRadiusPx + halfStroke,
+                                    top = size.height - 2 * cornerRadiusPx + halfStroke,
+                                    right = size.width - halfStroke,
+                                    bottom = size.height - halfStroke
+                                ),
+                                startAngleDegrees = 90f,
+                                sweepAngleDegrees = -90f,
+                                forceMoveTo = false
+                            )
+                            uPath.lineTo(size.width - halfStroke, 0f)
 
-                        val borderBrush = if (selectionProgress > 0.05f) {
-                            Brush.verticalGradient(
+                            val borderBrush = Brush.verticalGradient(
                                 0.0f to accent.copy(alpha = 0.12f * selectionProgress),
                                 0.45f to accent.copy(alpha = 0.65f * selectionProgress),
                                 1.0f to accent.copy(alpha = selectionProgress),
                                 startY = 0f,
                                 endY = size.height
                             )
-                        } else {
-                            SolidColor(palette.border.copy(alpha = 0.18f))
-                        }
 
-                        drawPath(
-                            path = uPath,
-                            brush = borderBrush,
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                        )
+                            drawPath(
+                                path = uPath,
+                                brush = borderBrush,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                        }
                     }
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)
@@ -1361,7 +1389,7 @@ fun StashGridPhotoCard(
                     modifier = Modifier.padding(vertical = 1.dp)
                 )
 
-                // Row 1: Person Outline Icon + Actors
+                // Row 1: Actor Icon + Actors
                 val actorText = if (scene.femalePerformers.isNotEmpty()) {
                     scene.femalePerformers.joinToString(", ") { it.name }
                 } else {
@@ -1373,10 +1401,10 @@ fun StashGridPhotoCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Person,
+                        painter = painterResource(id = R.drawable.ic_nav_actor),
                         contentDescription = null,
                         tint = palette.textSecondary,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(13.5.dp)
                     )
                     Text(
                         text = actorText,
@@ -1387,7 +1415,7 @@ fun StashGridPhotoCard(
                     )
                 }
 
-                // Row 2: Studio Videocam Icon + Studio Name
+                // Row 2: Studio Icon + Studio Name
                 val studioText = scene.studioName ?: "Studio"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1395,7 +1423,7 @@ fun StashGridPhotoCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Videocam,
+                        painter = painterResource(id = R.drawable.ic_nav_studio),
                         contentDescription = null,
                         tint = palette.textSecondary,
                         modifier = Modifier.size(13.5.dp)
@@ -1409,7 +1437,7 @@ fun StashGridPhotoCard(
                     )
                 }
 
-                // Row 3: Calendar Outline Icon + Date
+                // Row 3: Calendar Icon + Date
                 val dateText = scene.date ?: "No date"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1417,10 +1445,10 @@ fun StashGridPhotoCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_app_calendar),
+                        painter = painterResource(id = R.drawable.ic_calendar_event),
                         contentDescription = null,
                         tint = palette.textSecondary,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(13.5.dp)
                     )
                     Text(
                         text = dateText,

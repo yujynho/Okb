@@ -222,7 +222,7 @@ fun StudioManagementScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(8.dp),
+                                .padding(top = 18.dp, bottom = 18.dp, start = 8.dp, end = 8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             val isBetaTest = LocalBetaTestPrivacy.current
@@ -294,6 +294,8 @@ fun StudioManagementScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+
+                            Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
                                 text = "$sceneCount scenes",

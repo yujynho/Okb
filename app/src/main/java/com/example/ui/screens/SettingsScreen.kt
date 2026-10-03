@@ -318,7 +318,7 @@ fun SettingsScreen(
                             .background(Color(0xFF3B3C3E)) // MUSE-REF Circular back button #3B3C3E
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            painter = painterResource(id = R.drawable.ic_player_back),
                             contentDescription = "Back",
                             tint = palette.textPrimary, // MUSE-REF
                             modifier = Modifier.size(20.dp)
