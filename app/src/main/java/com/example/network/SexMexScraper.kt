@@ -234,11 +234,91 @@ object SexMexScraper {
             if (sceneUrl.isBlank() || seenUrls.contains(sceneUrl)) continue
 
             // Determine title
-            var title = link.attr("title").trim()
-            if (title.isEmpty()) {
-                title = link.selectFirst("h3, h5, .scene-title, img[alt]")?.text()
+            var rawTitle = link.attr("title").trim()
+            if (rawTitle.isEmpty()) {
+                rawTitle = link.selectFirst("h3, h5, .scene-title, img[alt]")?.text()
                     ?.ifEmpty { link.selectFirst("img")?.attr("alt") }
                     ?: ""
+            }
+
+            // Decode basic HTML entities that might appear in title
+            rawTitle = rawTitle
+                .replace("&rsquo;", "'")
+                .replace("&lsquo;", "'")
+                .replace("&rdquo;", "\"")
+                .replace("&ldquo;", "\"")
+                .replace("&amp;", "&")
+
+            var cleanTitle = rawTitle
+            val actorsFromTitleList = mutableListOf<String>()
+            var extractedDateFromTitle: String? = null
+
+            val dateRegex = Regex("""\b(\d{1,4})[/\.-](\d{1,2})[/\.-](\d{2,4})\b""")
+
+            // Helper to clean and format a date string to YYYY-MM-DD if possible
+            fun formatToYyyyMmDd(raw: String): String {
+                val m = dateRegex.find(raw) ?: return raw
+                val p1 = m.groupValues[1]
+                val p2 = m.groupValues[2]
+                val p3 = m.groupValues[3]
+                
+                return if (p1.length == 4) {
+                    // YYYY-MM-DD
+                    "$p1-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}"
+                } else if (p3.length == 4) {
+                    // MM/DD/YYYY or DD/MM/YYYY
+                    "$p3-${p1.padStart(2, '0')}-${p2.padStart(2, '0')}"
+                } else if (p3.length == 2) {
+                    // MM/DD/YY -> 20YY
+                    "20$p3-${p1.padStart(2, '0')}-${p2.padStart(2, '0')}"
+                } else {
+                    raw
+                }
+            }
+
+            fun processPart(part: String) {
+                val trimmed = part.trim()
+                if (dateRegex.containsMatchIn(trimmed)) {
+                    extractedDateFromTitle = formatToYyyyMmDd(trimmed)
+                } else {
+                    actorsFromTitleList.add(trimmed)
+                }
+            }
+
+            // Split rawTitle by the dots
+            val titleParts = if (rawTitle.contains(" . ")) {
+                rawTitle.split(" . ")
+            } else if (rawTitle.contains(" .")) {
+                rawTitle.split(" .")
+            } else if (rawTitle.contains(".")) {
+                val parts = rawTitle.split(".")
+                // If parts look like date digits, don't split! (e.g. 10.24.2024)
+                if (parts.all { it.trim().all { c -> c.isDigit() } }) {
+                    listOf(rawTitle)
+                } else {
+                    parts
+                }
+            } else {
+                listOf(rawTitle)
+            }
+
+            if (titleParts.size > 1) {
+                for (part in titleParts) {
+                    processPart(part)
+                }
+                
+                // Determine the clean title: first part that is not a date
+                val nonDateParts = titleParts.filter { !dateRegex.containsMatchIn(it) }
+                if (nonDateParts.isNotEmpty()) {
+                    cleanTitle = nonDateParts[0].trim()
+                }
+            } else {
+                // Single part, check if it contains a date
+                val m = dateRegex.find(rawTitle)
+                if (m != null) {
+                    extractedDateFromTitle = formatToYyyyMmDd(m.value)
+                    cleanTitle = rawTitle.replace(m.value, "").replace(Regex("""\s+-\s+|\s+\.\s+|\s+&\s+"""), " ").trim()
+                }
             }
 
             // Cover thumbnail
@@ -261,22 +341,80 @@ object SexMexScraper {
 
             // Date and details from sibling / parent
             val container = link.parents().firstOrNull { it.hasClass("update_thumb") || it.hasClass("thumb") || it.hasClass("thumbs") || it.selectFirst(".scene-date") != null } ?: link.parent()
-            val dateStr = container?.selectFirst(".scene-date, time, .date")?.text()?.trim()
+            var dateStr = container?.selectFirst(".scene-date, time, .date")?.text()?.trim()
             val descr = container?.selectFirst(".scene-descr, .description, p")?.text()?.trim()
 
-            // Performers in scene
-            val performerElements = container?.select("a[href*='/models/'], a.modelnamesut") ?: emptyList()
-            val performers = performerElements.map { it.text().trim() }
-                .filter { it.isNotEmpty() && !it.contains("Models", ignoreCase = true) }
-                .distinct()
-                .map { StashPerformer(id = UUID.randomUUID().toString(), name = it, gender = "FEMALE", imageUrl = null) }
+            // Process and format extracted date
+            if (!dateStr.isNullOrBlank()) {
+                dateStr = formatToYyyyMmDd(dateStr)
+            } else if (!extractedDateFromTitle.isNullOrBlank()) {
+                dateStr = extractedDateFromTitle
+            }
 
-            if (title.isNotBlank() && !cleanCoverUrl.isNullOrBlank()) {
+            // Performers in scene - strict filter to exclude any scene update links (/updates/)
+            val performerElements = container?.select("a[href*='/models/'], a.modelnamesut")
+                ?.filter { el ->
+                    val href = el.attr("href")
+                    !href.contains("/updates/", ignoreCase = true) && !href.contains("/tour/updates/", ignoreCase = true)
+                } ?: emptyList()
+
+            val performersList = mutableListOf<String>()
+            for (linkEl in performerElements) {
+                val href = linkEl.attr("href")
+                val rawName = if (href.contains("/models/", ignoreCase = true) && !href.contains("models.html", ignoreCase = true)) {
+                    val modelId = href.substringAfterLast("/").substringBefore(".html").substringBefore("?")
+                    if (modelId.isNotBlank() && !modelId.equals("models", ignoreCase = true)) {
+                        modelId.replace("-", " ")
+                            .replace("_", " ")
+                            .replace(Regex("([a-z])([A-Z])"), "$1 $2")
+                            .split(" ")
+                            .filter { it.isNotBlank() }
+                            .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                            .trim()
+                    } else {
+                        null
+                    }
+                } else {
+                    val text = linkEl.text().trim()
+                    if (text.isNotEmpty() && !text.contains("Models", ignoreCase = true)) {
+                        text
+                    } else {
+                        null
+                    }
+                }
+
+                if (!rawName.isNullOrBlank()) {
+                    // Split by comma, " & ", " and ", or " And " to handle multiple performers listed together
+                    val splitNames = rawName.split(Regex(",|\\s+&\\s+|\\s+and\\s+|\\s+And\\s+"))
+                    for (name in splitNames) {
+                        val cleanName = name.trim()
+                        if (cleanName.isNotBlank() && cleanName.length > 2) {
+                            performersList.add(cleanName)
+                        }
+                    }
+                }
+            }
+
+            // Fallback performers: if links didn't give us performers, use those parsed from the title separator
+            if (performersList.isEmpty()) {
+                for (name in actorsFromTitleList) {
+                    val cleanName = name.trim()
+                    if (cleanName.isNotBlank() && cleanName.length > 2) {
+                        performersList.add(cleanName)
+                    }
+                }
+            }
+
+            val performers = performersList.distinct().map {
+                StashPerformer(id = UUID.randomUUID().toString(), name = it, gender = "FEMALE", imageUrl = null)
+            }
+
+            if (cleanTitle.isNotBlank() && !cleanCoverUrl.isNullOrBlank()) {
                 seenUrls.add(sceneUrl)
                 scenes.add(
                     StashScene(
                         id = sceneUrl,
-                        title = title,
+                        title = cleanTitle,
                         details = descr ?: "SexMex Official Scene",
                         date = dateStr ?: "Unknown Date",
                         studioId = "sexmex",
