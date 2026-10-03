@@ -19,9 +19,39 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
 
     override fun isConfigured(): Boolean = apiKeyProvider().trim().isNotEmpty()
 
-    override suspend fun checkCache(hash: String): CacheState {
-        // RD instantAvailability endpoint was sunsetted in late 2024. Return UNKNOWN so flow uses direct torrent check.
-        return CacheState.UNKNOWN
+    override suspend fun checkCache(hash: String): CacheState = withContext(Dispatchers.IO) {
+        val key = apiKeyProvider().trim()
+        if (key.isEmpty()) return@withContext CacheState.UNKNOWN
+
+        val infoHash = MagnetParser.parseHash(hash)?.lowercase() ?: return@withContext CacheState.UNKNOWN
+
+        try {
+            val url = "$baseUrl/torrents/instantAvailability/$infoHash"
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $key")
+                .build()
+
+            val response = NetworkClient.apiClient.newCall(request).await()
+            val body = response.body?.string().orEmpty()
+            val code = response.code
+            response.close()
+
+            if (code in 200..299 && body.isNotEmpty()) {
+                val json = JSONObject(body)
+                val hashJson = json.optJSONObject(infoHash)
+                if (hashJson != null) {
+                    val rdArr = hashJson.optJSONArray("rd")
+                    if (rdArr != null && rdArr.length() > 0) {
+                        return@withContext CacheState.CACHED
+                    }
+                }
+            }
+            return@withContext CacheState.NOT_CACHED
+        } catch (e: Exception) {
+            Log.e(tag, "Real-Debrid checkCache failed: ${e.message}")
+        }
+        CacheState.UNKNOWN
     }
 
     override suspend fun resolveStream(magnetOrQuery: String, allowUncached: Boolean): DebridResult = withContext(Dispatchers.IO) {
@@ -45,6 +75,7 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
 
         val canonicalMagnet = MagnetParser.toCanonicalMagnet(infoHash!!)
         var addedTorrentId: String? = null
+        var isExisting = false
 
         try {
             Log.d(tag, "[REAL-DEBRID] Resolving infoHash: ${MagnetParser.redact(infoHash)}")
@@ -54,6 +85,7 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
             if (!existingId.isNullOrEmpty()) {
                 Log.d(tag, "[REAL-DEBRID] Found existing torrent with ID: $existingId")
                 addedTorrentId = existingId
+                isExisting = true
             } else {
                 // Step 2: Add magnet to Real-Debrid
                 val addBody = FormBody.Builder().add("magnet", canonicalMagnet).build()
@@ -118,9 +150,6 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
             var targetFilesize: Long? = null
 
             while (System.currentTimeMillis() - startTime < totalTimeoutMs) {
-                delay(pollDelayMs)
-                pollDelayMs = (pollDelayMs + 250L).coerceAtMost(1000L)
-
                 val infoReq = Request.Builder()
                     .url("$baseUrl/torrents/info/$addedTorrentId")
                     .header("Authorization", "Bearer $key")
@@ -227,8 +256,10 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
                 if (status in listOf("downloading", "queued", "compressing", "uploading")) {
                     val elapsedTime = System.currentTimeMillis() - startTime
                     if (!allowUncached && elapsedTime > 6000L) {
-                        // Cleanup torrent if not cached within short window
-                        deleteTorrent(addedTorrentId, key)
+                        // Cleanup torrent only if we added it in this session
+                        if (!isExisting) {
+                            deleteTorrent(addedTorrentId, key)
+                        }
                         return@withContext DebridResult.Error(
                             type = DebridErrorType.NotCached,
                             message = "Torrent is not cached on Real-Debrid.",
@@ -236,10 +267,13 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
                         )
                     }
                 }
+
+                delay(pollDelayMs)
+                pollDelayMs = (pollDelayMs + 150L).coerceAtMost(1000L)
             }
 
             if (rawLink.isNullOrEmpty()) {
-                if (!allowUncached) {
+                if (!allowUncached && !isExisting) {
                     deleteTorrent(addedTorrentId, key)
                 }
                 return@withContext DebridResult.Error(
@@ -255,7 +289,9 @@ class RealDebridProvider(private val apiKeyProvider: () -> String) : DebridProvi
             if (e is kotlinx.coroutines.CancellationException) {
                 // Non-cancellable cleanup on coroutine cancellation
                 withContext(NonCancellable) {
-                    deleteTorrent(addedTorrentId, key)
+                    if (!isExisting) {
+                        deleteTorrent(addedTorrentId, key)
+                    }
                 }
                 throw e
             }

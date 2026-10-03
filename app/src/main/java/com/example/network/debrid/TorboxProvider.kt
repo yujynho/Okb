@@ -67,7 +67,13 @@ class TorboxProvider(private val apiKeyProvider: () -> String) : DebridProvider 
 
         val trimmed = magnetOrQuery.trim()
         val infoHash = MagnetParser.parseHash(trimmed)
-        val canonicalMagnet = if (infoHash != null) MagnetParser.toCanonicalMagnet(infoHash) else trimmed
+        val canonicalMagnet = if (trimmed.startsWith("magnet:", ignoreCase = true)) {
+            trimmed
+        } else if (infoHash != null) {
+            MagnetParser.toCanonicalMagnet(infoHash)
+        } else {
+            trimmed
+        }
 
         if (infoHash != null && !allowUncached) {
             val cacheState = checkCache(infoHash)
@@ -147,6 +153,7 @@ class TorboxProvider(private val apiKeyProvider: () -> String) : DebridProvider 
 
             // Step 2: Poll mylist until file list is available
             val startTime = System.currentTimeMillis()
+            var torboxPollDelay = 1000L
             while (System.currentTimeMillis() - startTime < 20_000L) {
                 val infoReq = Request.Builder()
                     .url("$baseUrl/torrents/mylist?id=$torrentId")
@@ -161,7 +168,15 @@ class TorboxProvider(private val apiKeyProvider: () -> String) : DebridProvider 
                 if (infoCode in 200..299 && infoBody.isNotEmpty()) {
                     val infoJson = JSONObject(infoBody)
                     val dataObj = infoJson.optJSONObject("data")
-                    val filesArr = dataObj?.optJSONArray("files") ?: infoJson.optJSONArray("data")?.optJSONObject(0)?.optJSONArray("files")
+                    val dataArr = infoJson.optJSONArray("data")
+                    
+                    val filesArr = if (dataObj != null) {
+                        dataObj.optJSONArray("files")
+                    } else if (dataArr != null && dataArr.length() > 0) {
+                        dataArr.optJSONObject(0)?.optJSONArray("files")
+                    } else {
+                        null
+                    }
 
                     if (filesArr != null && filesArr.length() > 0) {
                         val fileList = mutableListOf<DebridFileInfo>()
@@ -182,12 +197,13 @@ class TorboxProvider(private val apiKeyProvider: () -> String) : DebridProvider 
                         }
                     }
                 }
-                delay(300)
+                delay(torboxPollDelay)
+                torboxPollDelay = (torboxPollDelay + 500L).coerceAtMost(2000L)
             }
 
             // Step 3: Request Direct Link
             val fileParam = if (!selectedFileId.isNullOrEmpty()) "&file_id=$selectedFileId" else ""
-            val requestDlUrl = "$baseUrl/torrents/requestdl?token=$key&torrent_id=$torrentId$fileParam&zip_link=false"
+            val requestDlUrl = "$baseUrl/torrents/requestdl?torrent_id=$torrentId$fileParam&zip_link=false"
 
             val dlReq = Request.Builder()
                 .url(requestDlUrl)

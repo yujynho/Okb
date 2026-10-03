@@ -1,6 +1,7 @@
 package com.example.network.debrid
 
 import android.util.Log
+import com.example.network.torrent.MagnetParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -58,7 +59,8 @@ class DebridManager(
             )
         }
 
-        val cacheKey = queryOrMagnet.trim().lowercase()
+        val infoHash = MagnetParser.parseHash(queryOrMagnet)
+        val cacheKey = infoHash?.lowercase() ?: queryOrMagnet.trim().lowercase()
         val cached = resolvedStreamCache[cacheKey]
         if (cached != null && (System.currentTimeMillis() - cached.timestampMs < CACHE_TTL_MS)) {
             Log.d(tag, "Returning cached Debrid stream for: $cacheKey")
@@ -100,22 +102,34 @@ class DebridManager(
                 return@coroutineScope realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
             }
             DebridOrder.AUTO -> {
-                // AUTO: Check Torbox cache first (zero side-effects)
-                val torboxCache = torboxProvider.checkCache(queryOrMagnet)
+                // Check both caches concurrently in parallel to cut check time in half!
+                val torboxCacheDeferred = async { torboxProvider.checkCache(queryOrMagnet) }
+                val rdCacheDeferred = async { realDebridProvider.checkCache(queryOrMagnet) }
+
+                val torboxCache = torboxCacheDeferred.await()
+                val rdCache = rdCacheDeferred.await()
+
                 if (torboxCache == CacheState.CACHED) {
                     val torRes = torboxProvider.resolveStream(queryOrMagnet, allowUncached)
                     if (torRes is DebridResult.Success) return@coroutineScope torRes
                 }
 
-                // Try Real-Debrid
+                if (rdCache == CacheState.CACHED) {
+                    val rdRes = realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
+                    if (rdRes is DebridResult.Success) return@coroutineScope rdRes
+                }
+
+                // 3. Fallback: resolve via Real-Debrid first due to superior torrent speeds
                 val rdRes = realDebridProvider.resolveStream(queryOrMagnet, allowUncached)
                 if (rdRes is DebridResult.Success) return@coroutineScope rdRes
 
-                // Fallback to Torbox
-                val torRes = torboxProvider.resolveStream(queryOrMagnet, allowUncached)
-                if (torRes is DebridResult.Success) return@coroutineScope torRes
+                // Only attempt Torbox resolution if we didn't already verify that it is NOT_CACHED
+                if (torboxCache != CacheState.NOT_CACHED || allowUncached) {
+                    val torRes = torboxProvider.resolveStream(queryOrMagnet, allowUncached)
+                    if (torRes is DebridResult.Success) return@coroutineScope torRes
+                }
 
-                val errorMsg = "Resolution failed. RD: ${(rdRes as? DebridResult.Error)?.message} | Torbox: ${(torRes as? DebridResult.Error)?.message}"
+                val errorMsg = "Resolution failed. RD: ${(rdRes as? DebridResult.Error)?.message}"
                 return@coroutineScope DebridResult.Error(
                     type = (rdRes as? DebridResult.Error)?.type ?: DebridErrorType.Unknown,
                     message = errorMsg,
