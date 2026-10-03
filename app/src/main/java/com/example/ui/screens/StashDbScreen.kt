@@ -239,20 +239,20 @@ fun StashDbScreen(
         val targetId = studioToBlock?.first
         AlertDialog(
             onDismissRequest = { studioToBlock = null },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(28.dp),
             containerColor = palette.cardBg,
             icon = {
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_settings_filter),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -261,7 +261,7 @@ fun StashDbScreen(
                 Text(
                     text = "Block Studio?",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 19.sp,
                     color = palette.textPrimary,
                     textAlign = TextAlign.Center
                 )
@@ -270,7 +270,8 @@ fun StashDbScreen(
                 Text(
                     text = "Do you want to block \"$targetName\"? Scenes from this studio will be filtered out from StashDB results.",
                     color = palette.textSecondary,
-                    fontSize = 13.5.sp,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
                     textAlign = TextAlign.Center
                 )
             },
@@ -287,7 +288,8 @@ fun StashDbScreen(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = Color.White
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                 ) {
                     Text("Block Studio", fontWeight = FontWeight.Bold)
                 }
@@ -295,20 +297,18 @@ fun StashDbScreen(
             dismissButton = {
                 TextButton(
                     onClick = { studioToBlock = null },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Text("Cancel", color = palette.textSecondary)
+                    Text("Cancel", color = palette.textSecondary, fontWeight = FontWeight.Medium)
                 }
             }
         )
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = palette.bg,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             TopAppBar(
                 title = {
                     if (isSearchExpanded) {
@@ -342,7 +342,11 @@ fun StashDbScreen(
                                 ) {
                                     if (searchQuery.isEmpty()) {
                                         Text(
-                                            text = if (activeType == StashSearchType.ACTORS) "Search actor..." else "Search studio...",
+                                            text = when (activeType) {
+                                                StashSearchType.ACTORS -> "Search actor..."
+                                                StashSearchType.STUDIO -> "Search studio..."
+                                                StashSearchType.SEXMEX -> "Paste SexMex Scene URL or Model..."
+                                            },
                                             style = MaterialTheme.typography.bodyLarge.copy(
                                                 fontSize = 15.sp,
                                                 color = palette.textMuted
@@ -403,7 +407,7 @@ fun StashDbScreen(
                             modifier = Modifier.testTag("save_selected_scenes_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                painter = painterResource(id = R.drawable.ic_action_save),
                                 contentDescription = "Save Selected Scenes",
                                 tint = accent
                             )
@@ -431,7 +435,7 @@ fun StashDbScreen(
                                 modifier = Modifier.testTag("clear_search_text_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    painter = painterResource(id = R.drawable.ic_action_cancel),
                                     contentDescription = "Clear text",
                                     tint = palette.textSecondary
                                 )
@@ -444,7 +448,7 @@ fun StashDbScreen(
                                 modifier = Modifier.testTag("close_search_action_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    painter = painterResource(id = R.drawable.ic_action_cancel),
                                     contentDescription = "Close Search",
                                     tint = palette.textPrimary
                                 )
@@ -469,6 +473,14 @@ fun StashDbScreen(
                 )
             )
         }
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = palette.bg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        topBar = {}
     ) { padding ->
         Box(
             modifier = Modifier
@@ -565,7 +577,11 @@ fun StashDbScreen(
                         } // BG-FIX
                 ) {
                     val indicatorBias by animateFloatAsState(
-                        targetValue = if (activeType == StashSearchType.ACTORS) -1f else 1f,
+                        targetValue = when (activeType) {
+                            StashSearchType.ACTORS -> -1f
+                            StashSearchType.STUDIO -> 0f
+                            StashSearchType.SEXMEX -> 1f
+                        },
                         animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                         label = "stash_tab_indicator_bias"
                     )
@@ -578,6 +594,11 @@ fun StashDbScreen(
                         targetValue = if (activeType == StashSearchType.STUDIO) accent else palette.textSecondary,
                         animationSpec = tween(durationMillis = 180),
                         label = "studio_tab_color"
+                    )
+                    val sexmexTabColor by animateColorAsState(
+                        targetValue = if (activeType == StashSearchType.SEXMEX) accent else palette.textSecondary,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "sexmex_tab_color"
                     )
 
                     Column {
@@ -646,6 +667,36 @@ fun StashDbScreen(
                                         )
                                     }
                                 }
+
+                                // SexMex Tab
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { viewModel.setStashActiveType(StashSearchType.SEXMEX, settings.stashDbApiKey) }
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_sexmex),
+                                            contentDescription = null,
+                                            tint = sexmexTabColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "SexMex",
+                                            fontWeight = if (activeType == StashSearchType.SEXMEX) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = sexmexTabColor
+                                        )
+                                    }
+                                }
                             }
 
                             // Smooth Sliding Indicator Underline
@@ -657,10 +708,10 @@ fun StashDbScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(0.5f)
+                                        .fillMaxWidth(0.333f)
                                         .fillMaxHeight()
                                         .align(BiasAlignment(indicatorBias, 0f))
-                                        .padding(horizontal = 24.dp)
+                                        .padding(horizontal = 16.dp)
                                         .background(accent, RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
                                 )
                             }
@@ -736,7 +787,7 @@ fun StashDbScreen(
                             },
                             label = "stash_results_type_anim"
                         ) { type ->
-                            if (type == StashSearchType.ACTORS && performerResults.isNotEmpty()) {
+                            if ((type == StashSearchType.ACTORS || type == StashSearchType.SEXMEX) && performerResults.isNotEmpty()) {
                                 Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                                     Text(
                                         text = "Results : ${performerResults.size}",
@@ -893,9 +944,39 @@ fun StashDbScreen(
                                 label = "stash_empty_state_anim"
                             ) { type ->
                                 EmptyStateView(
-                                    icon = if (type == StashSearchType.ACTORS) Icons.Outlined.Person else Icons.Outlined.Videocam,
-                                    title = if (type == StashSearchType.ACTORS) "Search Actor & Explore Scenes" else "Search Studio & Explore Scenes",
-                                    subtitle = "Tap the search icon in the header, type a name, and tap the search icon to search. Click any scene to select, then tap the checkmark in the header to save."
+                                    icon = when (type) {
+                                        StashSearchType.ACTORS -> Icons.Outlined.Person
+                                        StashSearchType.STUDIO -> Icons.Outlined.Videocam
+                                        StashSearchType.SEXMEX -> Icons.Default.Language
+                                    },
+                                    title = when (type) {
+                                        StashSearchType.ACTORS -> "Search Actor & Explore Scenes"
+                                        StashSearchType.STUDIO -> "Search Studio & Explore Scenes"
+                                        StashSearchType.SEXMEX -> "Search SexMex Model or Scene"
+                                    },
+                                    subtitle = if (type == StashSearchType.SEXMEX) {
+                                        "Search for a performer or scene title, or explore the latest releases directly."
+                                    } else {
+                                        "Tap the search icon in the header, type a name or query, and tap search. Click any scene to select, then tap the checkmark in the header to save."
+                                    },
+                                    content = if (type == StashSearchType.SEXMEX) {
+                                        {
+                                            TextButton(
+                                                onClick = { viewModel.exploreLatestSexMex() },
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.testTag("sexmex_explore_button")
+                                            ) {
+                                                Text(
+                                                    text = "Explore",
+                                                    style = MaterialTheme.typography.titleSmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        letterSpacing = 0.5.sp
+                                                    ),
+                                                    color = accent
+                                                )
+                                            }
+                                        }
+                                    } else null
                                 )
                             }
                         }
@@ -1549,7 +1630,8 @@ fun StashGridPhotoCard(
 fun EmptyStateView(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    subtitle: String
+    subtitle: String,
+    content: (@Composable () -> Unit)? = null
 ) {
     val palette = LocalVaultPalette.current
     Column(
@@ -1579,6 +1661,10 @@ fun EmptyStateView(
             color = palette.textSecondary,
             textAlign = TextAlign.Center
         )
+        if (content != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            content()
+        }
     }
 }
 

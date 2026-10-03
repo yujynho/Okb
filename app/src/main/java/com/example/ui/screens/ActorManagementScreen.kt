@@ -106,10 +106,9 @@ fun ActorManagementScreen(
         }
     }
 
-    Scaffold(
-        containerColor = palette.bg,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             TopAppBar(
                 title = { Text("Actors (${actors.size})", color = palette.textPrimary) },
                 navigationIcon = {
@@ -189,12 +188,18 @@ fun ActorManagementScreen(
                     }
 
                     IconButton(onClick = { showAddDialog = true }, modifier = Modifier.testTag("add_actor_button")) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = "Add Actor", tint = accent)
+                        Icon(painter = painterResource(id = R.drawable.ic_actor_add), contentDescription = "Add Actor", tint = accent)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.surface)
             )
         }
+    }
+
+    Scaffold(
+        containerColor = palette.bg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {}
     ) { padding ->
         if (sortedActors.isEmpty()) {
             Box(

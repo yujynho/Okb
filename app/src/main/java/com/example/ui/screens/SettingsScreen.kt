@@ -288,12 +288,9 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(
-        modifier = modifier,
-        containerColor = palette.bg, // MUSE-REF
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            // MUSE-REF: Centered top bar with Bold 20sp, palette.surface (= bg in Dark) and circular #3B3C3E back button
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -306,19 +303,24 @@ fun SettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            if (currentSection != SettingsSection.MAIN_MENU) {
-                                currentSection = SettingsSection.MAIN_MENU
-                            } else {
-                                viewModel.navigateBack()
-                            }
-                        },
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .padding(start = 12.dp)
                             .size(42.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF3B3C3E)) // MUSE-REF Circular back button #3B3C3E
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null, // No ripple or click effect!
+                                onClick = {
+                                    if (currentSection != SettingsSection.MAIN_MENU) {
+                                        currentSection = SettingsSection.MAIN_MENU
+                                    } else {
+                                        viewModel.navigateBack()
+                                    }
+                                }
+                            )
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_player_back),
@@ -333,6 +335,13 @@ fun SettingsScreen(
                 )
             )
         }
+    }
+
+    Scaffold(
+        modifier = modifier,
+        containerColor = palette.bg, // MUSE-REF
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {}
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             // ANIM-FIX: Crossfade + Scale animation spec
@@ -749,7 +758,7 @@ private fun SettingsFilterSection(
     if (showClearConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showClearConfirmDialog = false },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(28.dp),
             containerColor = palette.cardBg,
             title = {
                 Text(
@@ -774,14 +783,19 @@ private fun SettingsFilterSection(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = Color.White
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                 ) {
-                    Text("Clear All")
+                    Text("Clear All", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showClearConfirmDialog = false }) {
-                    Text("Cancel", color = palette.textSecondary)
+                TextButton(
+                    onClick = { showClearConfirmDialog = false },
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text("Cancel", color = palette.textSecondary, fontWeight = FontWeight.Medium)
                 }
             }
         )

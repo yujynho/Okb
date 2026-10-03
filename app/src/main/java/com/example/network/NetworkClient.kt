@@ -1,5 +1,6 @@
 package com.example.network
 
+import okhttp3.ConnectionPool
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -11,6 +12,7 @@ import java.util.concurrent.TimeUnit
 
 object NetworkClient {
     private val cookieStore = ConcurrentHashMap<String, MutableList<Cookie>>()
+    private val sharedConnectionPool = ConnectionPool(12, 5, TimeUnit.MINUTES)
 
     private val inMemoryCookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
@@ -34,16 +36,17 @@ object NetworkClient {
 
     val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .connectionPool(sharedConnectionPool)
             .cookieJar(inMemoryCookieJar)
-            .connectTimeout(25, TimeUnit.SECONDS)
-            .readTimeout(35, TimeUnit.SECONDS)
-            .writeTimeout(25, TimeUnit.SECONDS)
+            .connectTimeout(12, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
                 val original = chain.request()
-                val request = original.newBuilder()
+                val requestBuilder = original.newBuilder()
                     .header(
                         "User-Agent",
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
@@ -58,7 +61,13 @@ object NetworkClient {
                     .header("Sec-Fetch-Site", "none")
                     .header("Sec-Fetch-User", "?1")
                     .header("Upgrade-Insecure-Requests", "1")
-                    .build()
+
+                val host = original.url.host
+                if (host.contains("sexmex", ignoreCase = true) || host.contains("sexmex-cdn", ignoreCase = true)) {
+                    requestBuilder.header("Referer", "https://sexmex.xxx/")
+                }
+
+                val request = requestBuilder.build()
                 chain.proceed(request)
             }
             .build()

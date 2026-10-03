@@ -225,12 +225,9 @@ fun AddEditLinkScreen(
     val cardShape = RoundedCornerShape(20.dp)
     val chipShape = RoundedCornerShape(24.dp)
 
-    Scaffold(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.background, // BG-FIX
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             TopAppBar(
                 title = { Text(if (existingLink != null) "Edit Scene" else "Add Scene", color = palette.textPrimary, fontWeight = FontWeight.Bold) }, // BG-FIX
                 navigationIcon = {
@@ -269,7 +266,7 @@ fun AddEditLinkScreen(
                         modifier = Modifier.testTag("save_scene_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            painter = painterResource(id = R.drawable.ic_action_save),
                             contentDescription = "Save",
                             tint = if (title.isNotBlank()) accent else palette.textMuted
                         )
@@ -283,6 +280,14 @@ fun AddEditLinkScreen(
                 )
             )
         }
+    }
+
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background, // BG-FIX
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {}
     ) { padding ->
         Column(
             modifier = Modifier
@@ -469,7 +474,7 @@ fun AddEditLinkScreen(
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_app_calendar),
                                 contentDescription = "Select Date",
-                                tint = accent,
+                                tint = palette.textSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1005,7 +1010,7 @@ private fun PasteTrailingIcon(
         Icon(
             painter = painterResource(id = R.drawable.ic_app_paste),
             contentDescription = "Paste from Clipboard",
-            tint = accent,
+            tint = LocalVaultPalette.current.textSecondary,
             modifier = Modifier.size(19.dp)
         )
     }

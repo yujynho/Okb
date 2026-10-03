@@ -8,6 +8,8 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +41,10 @@ import com.example.ui.theme.LocalVaultPalette
 import kotlinx.coroutines.launch
 
 private val DialogScrim = Color.Black.copy(alpha = 0.65f) // BG-FIX
+
+val LocalTopBarContent = compositionLocalOf<MutableState<(@Composable () -> Unit)?>> {
+    error("No LocalTopBarContent provided")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,10 +85,12 @@ fun MainAppShell(viewModel: MainViewModel) {
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = false,
-        scrimColor = Color.Black.copy(alpha = 0.5f),
+    val topBarContent = remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
+    CompositionLocalProvider(LocalTopBarContent provides topBarContent) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = drawerState.isOpen,
+            scrimColor = Color.Black.copy(alpha = 0.5f),
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = palette.cardBg, // BG-FIX
@@ -278,18 +286,38 @@ fun MainAppShell(viewModel: MainViewModel) {
             }
         }
     ) {
-        AnimatedVisibility(
-            visible = appEntranceVisible,
-            enter = slideInVertically(
-                animationSpec = tween(340, easing = FastOutSlowInEasing)
-            ) { fullHeight -> fullHeight / 5 } + fadeIn(animationSpec = tween(300)),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Active Screen View with Smooth Motion Transitions
+        Scaffold(
+            containerColor = palette.bg,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                AnimatedContent(
+                    targetState = topBarContent.value,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(130))
+                    },
+                    label = "global_top_bar_crossfade"
+                ) { content ->
+                    content?.invoke()
+                }
+            }
+        ) { globalPadding ->
+            Box(
+                modifier = Modifier
+                    .padding(top = globalPadding.calculateTopPadding())
+                    .fillMaxSize()
+            ) {
+                AnimatedVisibility(
+                    visible = appEntranceVisible,
+                    enter = slideInVertically(
+                        animationSpec = tween(340, easing = FastOutSlowInEasing)
+                    ) { fullHeight -> fullHeight / 5 } + fadeIn(animationSpec = tween(300)),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        AnimatedContent(
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // Active Screen View with Smooth Motion Transitions
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AnimatedContent(
                             targetState = currentScreen,
                             transitionSpec = {
                                 when (currentSettings.transitionStyle) {
@@ -394,6 +422,22 @@ fun MainAppShell(viewModel: MainViewModel) {
                             is ScreenState.Settings -> SettingsScreen(viewModel)
                         }
                     }
+                }
+                
+                // If drawer is open, add click outside to close dismiss
+                if (drawerState.isOpen) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Transparent)
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    coroutineScope.launch { drawerState.close() }
+                                }
+                            )
+                    )
                 }
             }
 
@@ -500,5 +544,8 @@ fun MainAppShell(viewModel: MainViewModel) {
             }
         }
     }
+}
+}
+}
 }
 }

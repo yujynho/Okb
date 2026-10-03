@@ -35,7 +35,8 @@ enum class SortMode {
 
 enum class StashSearchType {
     ACTORS,
-    STUDIO
+    STUDIO,
+    SEXMEX
 }
 
 enum class SettingsSection {
@@ -463,21 +464,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var stashScenesJob: kotlinx.coroutines.Job? = null
     private var stashActorQuery = ""
     private var stashStudioQuery = ""
+    private var stashSexMexQuery = ""
     private var cachedActorScenes = emptyList<StashScene>()
     private var cachedStudioScenes = emptyList<StashScene>()
+    private var cachedSexMexScenes = emptyList<StashScene>()
     private var cachedActorTotalCount = 0
     private var cachedStudioTotalCount = 0
+    private var cachedSexMexTotalCount = 0
     private var cachedActorCurrentPage = 1
     private var cachedStudioCurrentPage = 1
+    private var cachedSexMexCurrentPage = 1
     private var cachedActorCanLoadMore = false
     private var cachedStudioCanLoadMore = false
+    private var cachedSexMexCanLoadMore = false
 
     fun setStashSearchQuery(query: String) {
         _stashSearchQuery.value = query
-        if (_stashActiveType.value == StashSearchType.ACTORS) {
-            stashActorQuery = query
-        } else {
-            stashStudioQuery = query
+        when (_stashActiveType.value) {
+            StashSearchType.ACTORS -> stashActorQuery = query
+            StashSearchType.STUDIO -> stashStudioQuery = query
+            StashSearchType.SEXMEX -> stashSexMexQuery = query
         }
     }
 
@@ -489,35 +495,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (_stashActiveType.value == type) return
 
         // 1. Cache current state before switching
-        if (_stashActiveType.value == StashSearchType.ACTORS) {
-            cachedActorScenes = _stashScenesList.value
-            cachedActorTotalCount = _stashTotalScenesCount.value
-            cachedActorCurrentPage = _stashCurrentPage.value
-            cachedActorCanLoadMore = _stashCanLoadMore.value
-        } else {
-            cachedStudioScenes = _stashScenesList.value
-            cachedStudioTotalCount = _stashTotalScenesCount.value
-            cachedStudioCurrentPage = _stashCurrentPage.value
-            cachedStudioCanLoadMore = _stashCanLoadMore.value
+        when (_stashActiveType.value) {
+            StashSearchType.ACTORS -> {
+                cachedActorScenes = _stashScenesList.value
+                cachedActorTotalCount = _stashTotalScenesCount.value
+                cachedActorCurrentPage = _stashCurrentPage.value
+                cachedActorCanLoadMore = _stashCanLoadMore.value
+            }
+            StashSearchType.STUDIO -> {
+                cachedStudioScenes = _stashScenesList.value
+                cachedStudioTotalCount = _stashTotalScenesCount.value
+                cachedStudioCurrentPage = _stashCurrentPage.value
+                cachedStudioCanLoadMore = _stashCanLoadMore.value
+            }
+            StashSearchType.SEXMEX -> {
+                cachedSexMexScenes = _stashScenesList.value
+                cachedSexMexTotalCount = _stashTotalScenesCount.value
+                cachedSexMexCurrentPage = _stashCurrentPage.value
+                cachedSexMexCanLoadMore = _stashCanLoadMore.value
+            }
         }
 
         _stashActiveType.value = type
         _stashSearchError.value = null
 
         // 2. Restore cached query & scenes for newly selected tab (or empty if none yet)
-        if (type == StashSearchType.ACTORS) {
-            _stashSearchQuery.value = stashActorQuery
-            _stashScenesList.value = cachedActorScenes
-            _stashTotalScenesCount.value = cachedActorTotalCount
-            _stashCurrentPage.value = cachedActorCurrentPage
-            _stashCanLoadMore.value = cachedActorCanLoadMore
-        } else {
-            _stashSearchQuery.value = stashStudioQuery
-            _stashScenesList.value = cachedStudioScenes
-            _stashTotalScenesCount.value = cachedStudioTotalCount
-            _stashCurrentPage.value = cachedStudioCurrentPage
-            _stashCanLoadMore.value = cachedStudioCanLoadMore
+        when (type) {
+            StashSearchType.ACTORS -> {
+                _stashSearchQuery.value = stashActorQuery
+                _stashScenesList.value = cachedActorScenes
+                _stashTotalScenesCount.value = cachedActorTotalCount
+                _stashCurrentPage.value = cachedActorCurrentPage
+                _stashCanLoadMore.value = cachedActorCanLoadMore
+            }
+            StashSearchType.STUDIO -> {
+                _stashSearchQuery.value = stashStudioQuery
+                _stashScenesList.value = cachedStudioScenes
+                _stashTotalScenesCount.value = cachedStudioTotalCount
+                _stashCurrentPage.value = cachedStudioCurrentPage
+                _stashCanLoadMore.value = cachedStudioCanLoadMore
+            }
+            StashSearchType.SEXMEX -> {
+                _stashSearchQuery.value = stashSexMexQuery
+                _stashScenesList.value = cachedSexMexScenes
+                _stashTotalScenesCount.value = cachedSexMexTotalCount
+                _stashCurrentPage.value = cachedSexMexCurrentPage
+                _stashCanLoadMore.value = cachedSexMexCanLoadMore
+            }
         }
+
     }
 
     fun toggleStashSceneSelection(sceneId: String) {
@@ -572,64 +598,154 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _stashCurrentPage.value = 1
             _stashCanLoadMore.value = false
 
-            if (_stashActiveType.value == StashSearchType.ACTORS) {
-                val res = StashDbApiService.searchPerformers(q, apiKey)
-                res.onSuccess { rawPerformers ->
-                    val sorted = rawPerformers.sortedWith(
-                        compareByDescending<StashPerformer> { performer ->
-                            val name = performer.name.trim().lowercase()
-                            val aliases = performer.aliases.map { it.trim().lowercase() }
-                            when {
-                                name == q.lowercase() -> 100
-                                aliases.contains(q.lowercase()) -> 90
-                                name.startsWith(q.lowercase()) -> 80
-                                aliases.any { it.startsWith(q.lowercase()) } -> 70
-                                name.contains(q.lowercase()) -> 60
-                                aliases.any { it.contains(q.lowercase()) } -> 50
-                                else -> 10
+            when (_stashActiveType.value) {
+                StashSearchType.ACTORS -> {
+                    val res = StashDbApiService.searchPerformers(q, apiKey)
+                    res.onSuccess { rawPerformers ->
+                        val sorted = rawPerformers.sortedWith(
+                            compareByDescending<StashPerformer> { performer ->
+                                val name = performer.name.trim().lowercase()
+                                val aliases = performer.aliases.map { it.trim().lowercase() }
+                                when {
+                                    name == q.lowercase() -> 100
+                                    aliases.contains(q.lowercase()) -> 90
+                                    name.startsWith(q.lowercase()) -> 80
+                                    aliases.any { it.startsWith(q.lowercase()) } -> 70
+                                    name.contains(q.lowercase()) -> 60
+                                    aliases.any { it.contains(q.lowercase()) } -> 50
+                                    else -> 10
+                                }
+                            }.thenByDescending {
+                                if (!it.imageUrl.isNullOrBlank()) 1 else 0
+                            }.thenBy {
+                                it.name.lowercase()
                             }
-                        }.thenByDescending {
-                            if (!it.imageUrl.isNullOrBlank()) 1 else 0
-                        }.thenBy {
-                            it.name.lowercase()
+                        )
+                        _stashPerformerResults.value = sorted
+                        _isStashLoadingEntities.value = false
+                        if (sorted.isNotEmpty()) {
+                            selectStashPerformer(sorted.first(), apiKey)
                         }
-                    )
-                    _stashPerformerResults.value = sorted
-                    _isStashLoadingEntities.value = false
-                    if (sorted.isNotEmpty()) {
-                        selectStashPerformer(sorted.first(), apiKey)
+                    }.onFailure { err ->
+                        _stashSearchError.value = err.message ?: "Failed to search actors"
+                        _isStashLoadingEntities.value = false
                     }
-                }.onFailure { err ->
-                    _stashSearchError.value = err.message ?: "Failed to search actors"
-                    _isStashLoadingEntities.value = false
                 }
-            } else {
-                val res = StashDbApiService.searchStudios(q, apiKey)
-                res.onSuccess { rawStudios ->
-                    val sorted = rawStudios.sortedWith(
-                        compareByDescending<StashStudio> { studio ->
-                            val name = studio.name.trim().lowercase()
-                            when {
-                                name == q.lowercase() -> 100
-                                name.startsWith(q.lowercase()) -> 80
-                                name.contains(q.lowercase()) -> 60
-                                else -> 10
+                StashSearchType.STUDIO -> {
+                    val res = StashDbApiService.searchStudios(q, apiKey)
+                    res.onSuccess { rawStudios ->
+                        val sorted = rawStudios.sortedWith(
+                            compareByDescending<StashStudio> { studio ->
+                                val name = studio.name.trim().lowercase()
+                                when {
+                                    name == q.lowercase() -> 100
+                                    name.startsWith(q.lowercase()) -> 80
+                                    name.contains(q.lowercase()) -> 60
+                                    else -> 10
+                                }
+                            }.thenByDescending {
+                                if (!it.logoUrl.isNullOrBlank()) 1 else 0
+                            }.thenBy {
+                                it.name.lowercase()
                             }
-                        }.thenByDescending {
-                            if (!it.logoUrl.isNullOrBlank()) 1 else 0
-                        }.thenBy {
-                            it.name.lowercase()
+                        )
+                        _stashStudioResults.value = sorted
+                        _isStashLoadingEntities.value = false
+                        if (sorted.isNotEmpty()) {
+                            selectStashStudio(sorted.first(), apiKey)
                         }
-                    )
-                    _stashStudioResults.value = sorted
-                    _isStashLoadingEntities.value = false
-                    if (sorted.isNotEmpty()) {
-                        selectStashStudio(sorted.first(), apiKey)
+                    }.onFailure { err ->
+                        _stashSearchError.value = err.message ?: "Failed to search studios"
+                        _isStashLoadingEntities.value = false
                     }
-                }.onFailure { err ->
-                    _stashSearchError.value = err.message ?: "Failed to search studios"
-                    _isStashLoadingEntities.value = false
                 }
+                StashSearchType.SEXMEX -> {
+                    try {
+                        val result = com.example.network.SexMexScraper.searchSexMex(q)
+                        _stashPerformerResults.value = result.models
+                        _stashSelectedPerformer.value = result.models.firstOrNull()
+                        _stashScenesList.value = result.scenes
+                        _stashTotalScenesCount.value = result.scenes.size
+                        _stashCurrentPage.value = 1
+                        _stashCanLoadMore.value = false
+                        _isStashLoadingEntities.value = false
+                        _isStashLoadingScenes.value = false
+
+                        // Speculatively prefetch remaining models in background for 0ms instant click
+                        if (result.models.size > 1) {
+                            viewModelScope.launch(Dispatchers.IO) {
+                                result.models.drop(1).take(3).forEach { m ->
+                                    try {
+                                        com.example.network.SexMexScraper.scrapeSexMexPage(m.id)
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        _stashSearchError.value = e.message ?: "Failed to search SexMex"
+                        _isStashLoadingEntities.value = false
+                        _isStashLoadingScenes.value = false
+                    }
+                }
+            }
+        }
+    }
+
+    fun exploreLatestSexMex() {
+        stashSearchJob?.cancel()
+        stashScenesJob?.cancel()
+        stashSearchJob = viewModelScope.launch(Dispatchers.IO) {
+            _isStashLoadingScenes.value = true
+            _stashSearchError.value = null
+            _stashPerformerResults.value = emptyList()
+            _stashSelectedPerformer.value = null
+            _stashScenesList.value = emptyList()
+            _stashCurrentPage.value = 1
+            _stashCanLoadMore.value = false
+            _stashSearchQuery.value = ""
+            try {
+                val latest = com.example.network.SexMexScraper.getLatestSexMexScenes()
+                _stashScenesList.value = latest
+                _stashTotalScenesCount.value = latest.size
+                cachedSexMexScenes = latest
+                cachedSexMexTotalCount = latest.size
+                _isStashLoadingScenes.value = false
+            } catch (e: Exception) {
+                _stashSearchError.value = e.message ?: "Failed to fetch latest SexMex scenes"
+                _isStashLoadingScenes.value = false
+            }
+        }
+    }
+
+    private val sexmexCoverRefreshTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val sexmexRefreshSemaphore = kotlinx.coroutines.sync.Semaphore(2)
+
+    fun autoRefreshSexMexCoverIfNeeded(link: LinkEntity) {
+        val sceneUrl = link.stashDbId?.trim() ?: return
+        if (!sceneUrl.contains("sexmex.xxx", ignoreCase = true) && !sceneUrl.contains("sexmex.com", ignoreCase = true)) {
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val lastAttempt = sexmexCoverRefreshTimestamps[link.id] ?: 0L
+        // Ultra-low resource consumption: Max 1 attempt per 10 minutes per link
+        if (now - lastAttempt < 10 * 60 * 1000L) {
+            return
+        }
+        sexmexCoverRefreshTimestamps[link.id] = now
+
+        viewModelScope.launch(Dispatchers.IO) {
+            sexmexRefreshSemaphore.acquire()
+            try {
+                val freshUrl = com.example.network.SexMexScraper.fetchFreshCoverUrl(sceneUrl)
+                if (!freshUrl.isNullOrBlank() && freshUrl != link.coverImage) {
+                    val updated = link.copy(coverImage = freshUrl)
+                    repository.updateLink(updated)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MainViewModel", "Failed to auto-refresh SexMex cover for ${link.id}", e)
+            } finally {
+                sexmexRefreshSemaphore.release()
             }
         }
     }
@@ -674,6 +790,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectStashPerformer(performer: StashPerformer, apiKey: String) {
         _stashSelectedPerformer.value = performer
         _stashSelectedStudio.value = null
+
+        if (_stashActiveType.value == StashSearchType.SEXMEX) {
+            stashScenesJob?.cancel()
+            stashScenesJob = viewModelScope.launch(Dispatchers.IO) {
+                _isStashLoadingScenes.value = true
+                _stashCurrentPage.value = 1
+                _stashScenesList.value = emptyList()
+                _stashSearchError.value = null
+                try {
+                    val scenes = com.example.network.SexMexScraper.scrapeSexMexPage(performer.id)
+                    _stashTotalScenesCount.value = scenes.size
+                    _stashScenesList.value = scenes
+                    _stashCanLoadMore.value = false
+                    _isStashLoadingScenes.value = false
+                } catch (e: Exception) {
+                    _stashSearchError.value = e.message ?: "Failed to load SexMex scenes"
+                    _isStashLoadingScenes.value = false
+                }
+            }
+            return
+        }
+
         stashScenesJob?.cancel()
         stashScenesJob = viewModelScope.launch(Dispatchers.IO) {
             _isStashLoadingScenes.value = true

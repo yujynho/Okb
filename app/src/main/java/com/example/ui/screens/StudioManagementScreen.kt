@@ -97,10 +97,9 @@ fun StudioManagementScreen(
         }
     }
 
-    Scaffold(
-        containerColor = palette.bg,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             TopAppBar(
                 title = { Text("Studios (${studios.size})", color = palette.textPrimary) },
                 navigationIcon = {
@@ -186,6 +185,12 @@ fun StudioManagementScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.surface)
             )
         }
+    }
+
+    Scaffold(
+        containerColor = palette.bg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {}
     ) { padding ->
         if (sortedStudios.isEmpty()) {
             Box(

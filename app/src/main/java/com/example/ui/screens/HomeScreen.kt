@@ -222,11 +222,9 @@ fun HomeScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             TopAppBar(
                 title = {
                     if (isSearchExpanded) {
@@ -336,7 +334,7 @@ fun HomeScreen(
                                 modifier = Modifier.testTag("clear_search_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    painter = painterResource(id = R.drawable.ic_action_cancel),
                                     contentDescription = "Clear Search",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -350,7 +348,7 @@ fun HomeScreen(
                                 modifier = Modifier.testTag("close_search_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    painter = painterResource(id = R.drawable.ic_action_cancel),
                                     contentDescription = "Close Search"
                                 )
                             }
@@ -483,7 +481,7 @@ fun HomeScreen(
                                 modifier = Modifier.testTag("edit_actor_header_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    painter = painterResource(id = R.drawable.ic_edit_pencil),
                                     contentDescription = "Edit Actor"
                                 )
                             }
@@ -493,7 +491,7 @@ fun HomeScreen(
                                 modifier = Modifier.testTag("edit_studio_header_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    painter = painterResource(id = R.drawable.ic_edit_pencil),
                                     contentDescription = "Edit Studio"
                                 )
                             }
@@ -521,6 +519,13 @@ fun HomeScreen(
                 )
             )
         }
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {}
     ) { paddingValues ->
         // ========================================================
         // FEED LIST OF ITEMS (MATCHING SCREENSHOT LAYOUT)
@@ -623,6 +628,7 @@ fun HomeScreen(
                             onStudioClick = { studioId ->
                                 viewModel.navigateTo(ScreenState.StudioScenes(studioId))
                             },
+                            onImageError = { viewModel.autoRefreshSexMexCoverIfNeeded(link) },
                             resolvingStatus = resolvingStatus,
                             isResolvingThisCard = resolvingCardId == link.id,
                             resolutionError = if (resolvingCardId == link.id) videoResolutionError else null,
@@ -713,7 +719,7 @@ fun HomeScreen(
                             modifier = Modifier.testTag("adjust_actor_photo_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                painter = painterResource(id = R.drawable.ic_details_adjust_brush),
                                 contentDescription = "Adjust Photo Position & Zoom",
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -1192,7 +1198,7 @@ fun HomeScreen(
                             modifier = Modifier.testTag("adjust_studio_bg_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                painter = painterResource(id = R.drawable.ic_details_adjust_brush),
                                 contentDescription = "Adjust Logo Background",
                                 tint = MaterialTheme.colorScheme.primary
                             )

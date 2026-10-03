@@ -167,11 +167,9 @@ fun BookmarksScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = palette.bg, // BG-FIX
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
+    val topBarContent = LocalTopBarContent.current
+    SideEffect {
+        topBarContent.value = {
             TopAppBar(
                 modifier = Modifier.drawBehind {
                     drawLine(
@@ -266,7 +264,7 @@ fun BookmarksScreen(
                                 modifier = Modifier.testTag("clear_search_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    painter = painterResource(id = R.drawable.ic_action_cancel),
                                     contentDescription = "Clear Search",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -280,7 +278,7 @@ fun BookmarksScreen(
                                 modifier = Modifier.testTag("close_search_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    painter = painterResource(id = R.drawable.ic_action_cancel),
                                     contentDescription = "Close Search"
                                 )
                             }
@@ -410,6 +408,13 @@ fun BookmarksScreen(
                 )
             )
         }
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = palette.bg, // BG-FIX
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {}
     ) { padding ->
         if (bookmarkedLinks.isEmpty()) {
             Box(
@@ -477,6 +482,7 @@ fun BookmarksScreen(
                             onDelete = { viewModel.deleteLink(link.id) },
                             onActorClick = { actorId -> viewModel.navigateTo(ScreenState.ActorScenes(actorId)) },
                             onStudioClick = { studioId -> viewModel.navigateTo(ScreenState.StudioScenes(studioId)) },
+                            onImageError = { viewModel.autoRefreshSexMexCoverIfNeeded(link) },
                             resolvingStatus = resolvingStatus,
                             isResolvingThisCard = resolvingCardId == link.id,
                             resolutionError = if (resolvingCardId == link.id) videoResolutionError else null,

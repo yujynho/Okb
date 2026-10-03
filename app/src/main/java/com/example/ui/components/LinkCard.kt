@@ -108,6 +108,7 @@ fun LinkCard(
     onFullscreenInlineVideo: (positionMs: Long) -> Unit = {},
     exoPlayer: androidx.media3.exoplayer.ExoPlayer? = null,
     enableVideoPlayerGestures: Boolean = true,
+    onImageError: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -382,7 +383,10 @@ fun LinkCard(
                         contentDescription = link.title,
                         contentScale = ContentScale.Crop,
                         onSuccess = { isImageLoaded = true },
-                        onError = { isImageLoaded = true },
+                        onError = {
+                            isImageLoaded = true
+                            onImageError?.invoke()
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .privacyImageBlur(isBetaTest)
