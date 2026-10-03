@@ -1,6 +1,9 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -89,7 +92,6 @@ fun IntegrationsDropdownDebridSection(
         )
     }
 
-    var isDropdownExpanded by remember { mutableStateOf(false) }
     var isOrderDropdownExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     var showApiKey by remember { mutableStateOf(false) }
@@ -194,87 +196,65 @@ fun IntegrationsDropdownDebridSection(
             border = null // INTEG-REDESIGN: no border
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Row 1: Provider Selection Row
-                Box(modifier = Modifier.fillMaxWidth()) {
+                // SEG-FIX: Permanent Segmented Control for Provider selection
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp, horizontal = 20.dp)
+                ) {
+                    Text(
+                        text = "Provider",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = palette.textMuted,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isDropdownExpanded = true }
-                            .padding(vertical = 18.dp, horizontal = 20.dp), // INTEG-REDESIGN
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Provider",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = 16.sp, // INTEG-REDESIGN
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = palette.textPrimary // INTEG-REDESIGN
-                        )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = selectedService.title,
-                                fontSize = 14.sp, // INTEG-REDESIGN
-                                color = palette.textPrimary // INTEG-REDESIGN
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
-                                contentDescription = null,
-                                tint = palette.textMuted, // INTEG-REDESIGN
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-
-                    DropdownMenu(
-                        expanded = isDropdownExpanded,
-                        onDismissRequest = { isDropdownExpanded = false },
-                        modifier = Modifier.background(palette.cardBg), // INTEG-REDESIGN: palette.cardBg
-                        shape = RoundedCornerShape(16.dp), // INTEG-REDESIGN: 16dp
-                        tonalElevation = 8.dp // INTEG-REDESIGN: 8dp
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         DebridServiceOption.values().forEach { option ->
-                            val isCurrentSelected = selectedService == option
-                            DropdownMenuItem(
-                                text = {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp) // INTEG-REDESIGN: 48dp height
-                                            .padding(horizontal = 16.dp), // INTEG-REDESIGN: 16dp horizontal
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (isCurrentSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = accent, // INTEG-REDESIGN
-                                                modifier = Modifier.size(18.dp) // INTEG-REDESIGN: 18dp check
-                                            )
-                                        } else {
-                                            Spacer(modifier = Modifier.width(18.dp))
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(
-                                            text = option.title,
-                                            fontSize = 14.sp, // INTEG-REDESIGN: 14sp
-                                            color = palette.textPrimary, // INTEG-REDESIGN
-                                            fontWeight = if (isCurrentSelected) FontWeight.SemiBold else FontWeight.Normal
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    selectedService = option
-                                    testStatusMessage = null
-                                    isDropdownExpanded = false
-                                },
-                                contentPadding = PaddingValues(0.dp)
+                            val isSelected = selectedService == option
+                            val backgroundColor by animateColorAsState(
+                                targetValue = if (isSelected) accent.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.04f),
+                                animationSpec = tween(200),
+                                label = "provider_bg_${option.id}"
                             )
+                            val borderColor by animateColorAsState(
+                                targetValue = if (isSelected) accent.copy(alpha = 0.45f) else palette.border,
+                                animationSpec = tween(200),
+                                label = "provider_border_${option.id}"
+                            )
+                            val textColor by animateColorAsState(
+                                targetValue = if (isSelected) accent else palette.textSecondary,
+                                animationSpec = tween(200),
+                                label = "provider_text_${option.id}"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(backgroundColor)
+                                    .border(
+                                        width = 1.dp,
+                                        color = borderColor,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable {
+                                        selectedService = option
+                                        testStatusMessage = null
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = option.title,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = textColor
+                                )
+                            }
                         }
                     }
                 }

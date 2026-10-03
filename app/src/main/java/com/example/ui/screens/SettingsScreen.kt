@@ -2,6 +2,9 @@ package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
@@ -326,22 +330,23 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
+        // ANIM-FIX: Crossfade + Scale animation spec
         AnimatedContent(
             targetState = currentSection,
+            modifier = Modifier.clipToBounds(), // مانع الانسكاب
             transitionSpec = {
-                if (targetState != SettingsSection.MAIN_MENU) {
-                    (fadeIn(animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
-                            slideInHorizontally(animationSpec = androidx.compose.animation.core.tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { width -> width / 5 })
-                        .togetherWith(
-                            fadeOut(animationSpec = androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutLinearInEasing))
-                        )
-                } else {
-                    fadeIn(animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
-                        .togetherWith(
-                            fadeOut(animationSpec = androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutLinearInEasing)) +
-                                    slideOutHorizontally(animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { width -> width / 5 }
-                        )
-                }
+                (fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
+                        scaleIn(
+                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                            initialScale = 0.98f
+                        ))
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
+                                scaleOut(
+                                    animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                    targetScale = 0.985f
+                                )
+                    )
             },
             label = "settings_navigation"
         ) { section ->
