@@ -43,7 +43,8 @@ fun SelectorOptionRow(
     selected: Boolean,
     onClick: () -> Unit,
     leading: (@Composable () -> Unit)? = null,   // swatch / icon
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape = CircleShape
 ) {
     val palette = LocalVaultPalette.current
     val accent = LocalAccentColor.current
@@ -63,14 +64,14 @@ fun SelectorOptionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(shape)
             .background(animBg)
             .then(
-                if (selected) Modifier.border(1.dp, animBorder, RoundedCornerShape(14.dp))
+                if (selected) Modifier.border(1.dp, animBorder, shape)
                 else Modifier
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 12.dp), // SELECT-UNIFY
+            .padding(vertical = 12.dp, horizontal = 16.dp), // SELECT-UNIFY: Soft smooth padding
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -89,7 +90,9 @@ fun SelectorOptionRow(
                         fontSize = 15.sp, // SELECT-UNIFY
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = palette.textPrimary // SELECT-UNIFY: Stays textPrimary when selected
+                    color = palette.textPrimary, // SELECT-UNIFY: Stays textPrimary when selected
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 if (!subtitle.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
@@ -98,7 +101,9 @@ fun SelectorOptionRow(
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 13.sp // SELECT-UNIFY
                         ),
-                        color = palette.textSecondary // SELECT-UNIFY
+                        color = palette.textSecondary, // SELECT-UNIFY
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }

@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
@@ -312,7 +313,7 @@ fun SettingsScreen(
                         },
                         modifier = Modifier
                             .padding(start = 12.dp)
-                            .size(38.dp)
+                            .size(42.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF3B3C3E)) // MUSE-REF Circular back button #3B3C3E
                     ) {
@@ -320,7 +321,7 @@ fun SettingsScreen(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = palette.textPrimary, // MUSE-REF
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
@@ -330,26 +331,27 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        // ANIM-FIX: Crossfade + Scale animation spec
-        AnimatedContent(
-            targetState = currentSection,
-            modifier = Modifier.clipToBounds(), // مانع الانسكاب
-            transitionSpec = {
-                (fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
-                        scaleIn(
-                            animationSpec = tween(240, easing = FastOutSlowInEasing),
-                            initialScale = 0.98f
-                        ))
-                    .togetherWith(
-                        fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
-                                scaleOut(
-                                    animationSpec = tween(200, easing = FastOutLinearInEasing),
-                                    targetScale = 0.985f
-                                )
-                    )
-            },
-            label = "settings_navigation"
-        ) { section ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // ANIM-FIX: Crossfade + Scale animation spec
+            AnimatedContent(
+                targetState = currentSection,
+                modifier = Modifier.clipToBounds(), // مانع الانسكاب
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
+                            scaleIn(
+                                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                initialScale = 0.98f
+                            ))
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
+                                    scaleOut(
+                                        animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                        targetScale = 0.985f
+                                    )
+                        )
+                },
+                label = "settings_navigation"
+            ) { section ->
             when (section) {
                 SettingsSection.MAIN_MENU -> {
                     // ORG-FIX: Clean signature with only onNavigateTo
@@ -389,6 +391,10 @@ fun SettingsScreen(
                         transitionStyle = currentSettings.transitionStyle,
                         onTransitionStyleChange = {
                             viewModel.updateSettings(currentSettings.copy(transitionStyle = it))
+                        },
+                        enableVideoPlayerGestures = currentSettings.enableVideoPlayerGestures,
+                        onEnableVideoPlayerGesturesChange = {
+                            viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
                         }
                     )
                 }
@@ -445,32 +451,14 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .padding(vertical = 14.dp, horizontal = 20.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "StashDB API Key",
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Medium
-                                        ),
-                                        color = palette.textPrimary
-                                    )
-                                    if (stashDbKey.isNotBlank()) {
-                                        TextButton(
-                                            onClick = {
-                                                stashDbKey = ""
-                                                viewModel.updateSettings(currentSettings.copy(stashDbApiKey = ""))
-                                            },
-                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                        ) {
-                                            Text("Clear Token", fontSize = 13.sp)
-                                        }
-                                    }
-                                }
+                                Text(
+                                    text = "StashDB API Key",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = palette.textPrimary
+                                )
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -503,7 +491,7 @@ fun SettingsScreen(
                                     ),
                                     leadingIcon = {
                                         Icon(
-                                            imageVector = Icons.Outlined.Key,
+                                            painter = painterResource(id = R.drawable.ic_settings_integrations),
                                             contentDescription = null,
                                             tint = accent,
                                             modifier = Modifier
@@ -512,40 +500,21 @@ fun SettingsScreen(
                                         )
                                     },
                                     trailingIcon = {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        IconButton(
+                                            onClick = { showStashDbKey = !showStashDbKey },
                                             modifier = Modifier.padding(end = 4.dp)
                                         ) {
-                                            IconButton(onClick = { showStashDbKey = !showStashDbKey }) {
-                                                Icon(
-                                                    imageVector = if (showStashDbKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                    contentDescription = if (showStashDbKey) "Hide API Key" else "Show API Key",
-                                                    tint = palette.textSecondary
-                                                )
-                                            }
-                                            IconButton(
-                                                onClick = {
-                                                    clipboardManager.getText()?.text?.let { clipboardText ->
-                                                        if (clipboardText.isNotBlank()) {
-                                                            stashDbKey = clipboardText.trim()
-                                                            viewModel.updateSettings(currentSettings.copy(stashDbApiKey = clipboardText.trim()))
-                                                        }
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.ic_app_paste),
-                                                    contentDescription = "Paste",
-                                                    tint = palette.textSecondary,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
+                                            Icon(
+                                                imageVector = if (showStashDbKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = if (showStashDbKey) "Hide API Key" else "Show API Key",
+                                                tint = palette.textSecondary
+                                            )
                                         }
                                     },
                                     visualTransformation = if (showStashDbKey) VisualTransformation.None else PasswordVisualTransformation(),
                                     singleLine = true,
                                     maxLines = 1,
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = CircleShape,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(56.dp)
@@ -559,28 +528,6 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                                 )
                             }
-                        }
-
-                        // ORG-NEW: Playback Settings Section containing Player Gestures (Single source of truth)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        SettingsSectionHeader(text = "Playback") // ORG-NEW
-                        GroupedCard {
-                            SettingsRow(
-                                title = "Player Gestures",
-                                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
-                                trailing = {
-                                    Switch(
-                                        checked = currentSettings.enableVideoPlayerGestures,
-                                        onCheckedChange = {
-                                            viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = it))
-                                        },
-                                        colors = museSwitchColors()
-                                    )
-                                },
-                                onClick = {
-                                    viewModel.updateSettings(currentSettings.copy(enableVideoPlayerGestures = !currentSettings.enableVideoPlayerGestures))
-                                }
-                            ) // ORG-MOVED: MAIN_MENU → INTEGRATIONS under Playback header (Single source of truth)
                         }
                     }
                 }
@@ -618,7 +565,25 @@ fun SettingsScreen(
                 }
             }
         }
+
+        // Soft & smooth lightweight gradient mask below header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = padding.calculateTopPadding())
+                .height(18.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            palette.surface,
+                            palette.surface.copy(alpha = 0.5f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
     }
+}
 }
 
 /**
@@ -753,7 +718,9 @@ private fun SettingsDisplaySection(
     appIconStyle: Int,
     onAppIconStyleChange: (Int) -> Unit,
     transitionStyle: Int,
-    onTransitionStyleChange: (Int) -> Unit
+    onTransitionStyleChange: (Int) -> Unit,
+    enableVideoPlayerGestures: Boolean,
+    onEnableVideoPlayerGesturesChange: (Boolean) -> Unit
 ) {
     val palette = LocalVaultPalette.current
 
@@ -840,6 +807,23 @@ private fun SettingsDisplaySection(
                 },
                 onClick = { onShowManagementCardsChange(!showManagementCards) }
             ) // ORG-MOVED: MAIN_MENU → DISPLAY (Single source of truth)
+        }
+
+        // Player Gestures toggle in Grouped Card - MOVED TO DISPLAY
+        GroupedCard {
+            SettingsRow(
+                title = "Player Gestures",
+                subtitle = "Control volume and brightness by vertical swipes in the video overlay player. When turned off, vertical scrolling over the video passes through smoothly.",
+                trailing = {
+                    Switch(
+                        checked = enableVideoPlayerGestures,
+                        onCheckedChange = onEnableVideoPlayerGesturesChange,
+                        colors = museSwitchColors(),
+                        modifier = Modifier.testTag("player_gestures_switch")
+                    )
+                },
+                onClick = { onEnableVideoPlayerGesturesChange(!enableVideoPlayerGestures) }
+            )
         }
     }
 }

@@ -46,25 +46,25 @@ fun NativeTransitionSelector(
             TransitionOptionItem(
                 id = 0,
                 title = "Default Motion",
-                subtitle = "Smooth vertical slide & fade",
+                subtitle = "Smooth vertical slide and fade",
                 icon = Icons.Outlined.SwapVert
             ),
             TransitionOptionItem(
                 id = 1,
                 title = "Lateral Slide",
-                subtitle = "Clean horizontal side navigation",
+                subtitle = "Clean horizontal navigation slide",
                 icon = Icons.Outlined.SwapHoriz
             ),
             TransitionOptionItem(
                 id = 2,
                 title = "Smooth Fade & Scale",
-                subtitle = "Ultra lightweight & fluid transition",
+                subtitle = "Lightweight fluid scale and fade",
                 icon = Icons.Outlined.AutoAwesome
             ),
             TransitionOptionItem(
                 id = 3,
                 title = "Link Transition",
-                subtitle = "Static top header with seamless in-place transitions",
+                subtitle = "Seamless in-place page morph",
                 icon = Icons.Outlined.Link
             )
         )

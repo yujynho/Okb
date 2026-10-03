@@ -13,8 +13,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,15 +31,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
-import com.example.network.NetworkClient
-import com.example.network.await
 import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalVaultPalette
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.Request
-import org.json.JSONObject
 
 enum class DebridServiceOption(
     val id: String,
@@ -92,13 +85,9 @@ fun IntegrationsDropdownDebridSection(
         )
     }
 
+    var isServicesDropdownExpanded by remember { mutableStateOf(false) }
     var isOrderDropdownExpanded by remember { mutableStateOf(false) }
-    val clipboardManager = LocalClipboardManager.current
     var showApiKey by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-
-    var testStatusMessage by remember { mutableStateOf<String?>(null) }
-    var isTestingConnection by remember { mutableStateOf(false) }
 
     val activeKey = when (selectedService) {
         DebridServiceOption.REAL_DEBRID -> realDebridKey
@@ -106,73 +95,9 @@ fun IntegrationsDropdownDebridSection(
     }
 
     val onActiveKeyChange: (String) -> Unit = { newKey ->
-        testStatusMessage = null
         when (selectedService) {
             DebridServiceOption.REAL_DEBRID -> onRealDebridKeyChange(newKey)
             DebridServiceOption.TORBOX -> onTorboxKeyChange(newKey)
-        }
-    }
-
-    fun testConnection() {
-        val key = activeKey.trim()
-        if (key.isEmpty()) {
-            testStatusMessage = "❌ API key is empty."
-            return
-        }
-
-        isTestingConnection = true
-        testStatusMessage = "Testing connection..."
-
-        coroutineScope.launch {
-            val resultMsg = withContext(Dispatchers.IO) {
-                try {
-                    if (selectedService == DebridServiceOption.REAL_DEBRID) {
-                        val req = Request.Builder()
-                            .url("https://api.real-debrid.com/rest/1.0/user")
-                            .header("Authorization", "Bearer $key")
-                            .build()
-                        val resp = NetworkClient.apiClient.newCall(req).await()
-                        val body = resp.body?.string().orEmpty()
-                        val code = resp.code
-                        resp.close()
-
-                        if (code in 200..299) {
-                            val json = JSONObject(body)
-                            val username = json.optString("username", "User")
-                            val type = json.optString("type", "free")
-                            val expiration = json.optString("expiration", "")
-                            val expDate = if (expiration.length >= 10) expiration.take(10) else ""
-                            "✓ Connected! $username ($type) ${if (expDate.isNotEmpty()) "Expires: $expDate" else ""}"
-                        } else {
-                            "❌ Auth Failed (HTTP $code)"
-                        }
-                    } else {
-                        val req = Request.Builder()
-                            .url("https://api.torbox.app/v1/api/user/me")
-                            .header("Authorization", "Bearer $key")
-                            .build()
-                        val resp = NetworkClient.apiClient.newCall(req).await()
-                        val body = resp.body?.string().orEmpty()
-                        val code = resp.code
-                        resp.close()
-
-                        if (code in 200..299) {
-                            val json = JSONObject(body)
-                            val dataObj = json.optJSONObject("data")
-                            val email = dataObj?.optString("email", "User") ?: "User"
-                            val plan = dataObj?.optInt("plan", 0) ?: 0
-                            val isPremium = plan > 0
-                            "✓ Connected! $email (${if (isPremium) "Premium Plan $plan" else "Free Plan"})"
-                        } else {
-                            "❌ Auth Failed (HTTP $code)"
-                        }
-                    }
-                } catch (e: Exception) {
-                    "❌ Connection error: ${e.message}"
-                }
-            }
-            testStatusMessage = resultMsg
-            isTestingConnection = false
         }
     }
 
@@ -196,82 +121,160 @@ fun IntegrationsDropdownDebridSection(
             border = null // INTEG-REDESIGN: no border
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // SEG-FIX: Permanent Segmented Control for Provider selection
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 14.dp, horizontal = 20.dp)
-                ) {
-                    Text(
-                        text = "Provider",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = palette.textMuted,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                // Row 1: Debrid Services Row with polished DropdownMenu underneath
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isServicesDropdownExpanded = true }
+                            .padding(vertical = 18.dp, horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        DebridServiceOption.values().forEach { option ->
-                            val isSelected = selectedService == option
-                            val backgroundColor by animateColorAsState(
-                                targetValue = if (isSelected) accent.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.04f),
-                                animationSpec = tween(200),
-                                label = "provider_bg_${option.id}"
-                            )
-                            val borderColor by animateColorAsState(
-                                targetValue = if (isSelected) accent.copy(alpha = 0.45f) else palette.border,
-                                animationSpec = tween(200),
-                                label = "provider_border_${option.id}"
-                            )
-                            val textColor by animateColorAsState(
-                                targetValue = if (isSelected) accent else palette.textSecondary,
-                                animationSpec = tween(200),
-                                label = "provider_text_${option.id}"
-                            )
-
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(backgroundColor)
-                                    .border(
-                                        width = 1.dp,
-                                        color = borderColor,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable {
-                                        selectedService = option
-                                        testStatusMessage = null
-                                    },
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(accent.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = option.title,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = textColor
+                                Icon(
+                                    imageVector = if (selectedService == DebridServiceOption.REAL_DEBRID) Icons.Outlined.CloudDownload else Icons.Outlined.Storage,
+                                    contentDescription = null,
+                                    tint = accent,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Debrid Services",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = palette.textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = selectedService.title,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 13.sp
+                                    ),
+                                    color = palette.textSecondary
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                            contentDescription = "Select Debrid Service",
+                            tint = palette.textMuted,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isServicesDropdownExpanded,
+                        onDismissRequest = { isServicesDropdownExpanded = false },
+                        modifier = Modifier
+                            .background(palette.cardBg)
+                            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        tonalElevation = 8.dp
+                    ) {
+                        DebridServiceOption.values().forEach { option ->
+                            val isCurrentSelected = selectedService == option
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp, horizontal = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(CircleShape)
+                                                .background(if (isCurrentSelected) accent.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = if (option == DebridServiceOption.REAL_DEBRID) Icons.Outlined.CloudDownload else Icons.Outlined.Storage,
+                                                contentDescription = null,
+                                                tint = if (isCurrentSelected) accent else palette.textMuted,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = option.title,
+                                                fontSize = 14.sp,
+                                                color = palette.textPrimary,
+                                                fontWeight = if (isCurrentSelected) FontWeight.SemiBold else FontWeight.Normal
+                                            )
+                                            Text(
+                                                text = if (option == DebridServiceOption.REAL_DEBRID) {
+                                                    "High-speed multi-hoster & cloud caching"
+                                                } else {
+                                                    "Fast torrent cloud & direct downloader"
+                                                },
+                                                fontSize = 12.sp,
+                                                color = palette.textSecondary,
+                                                maxLines = 1
+                                            )
+                                        }
+                                        if (isCurrentSelected) {
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = accent,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    selectedService = option
+                                    isServicesDropdownExpanded = false
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            )
                         }
                     }
                 }
 
                 // Divider 1
                 HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
+                    modifier = Modifier.padding(horizontal = 20.dp),
                     thickness = 1.dp,
-                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
+                    color = Color.White.copy(alpha = 0.10f)
                 )
 
                 // Row 2: API Key OutlinedTextField
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 14.dp, horizontal = 20.dp) // INTEG-REDESIGN
+                        .padding(vertical = 14.dp, horizontal = 20.dp)
                 ) {
+                    Text(
+                        text = "${selectedService.title} API Key",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = palette.textPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     OutlinedTextField(
                         value = activeKey,
                         onValueChange = onActiveKeyChange,
@@ -288,158 +291,62 @@ fun IntegrationsDropdownDebridSection(
                             color = palette.textPrimary
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f), // INTEG-REDESIGN
-                            unfocusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f), // INTEG-REDESIGN
-                            focusedBorderColor = accent, // INTEG-REDESIGN
-                            unfocusedBorderColor = palette.border, // INTEG-REDESIGN
-                            focusedTextColor = palette.textPrimary, // INTEG-REDESIGN
-                            unfocusedTextColor = palette.textPrimary, // INTEG-REDESIGN
+                            focusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f),
+                            unfocusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f),
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = palette.border,
+                            focusedTextColor = palette.textPrimary,
+                            unfocusedTextColor = palette.textPrimary,
                             cursorColor = accent
                         ),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Outlined.Key,
+                                painter = painterResource(id = R.drawable.ic_settings_integrations),
                                 contentDescription = null,
-                                tint = accent, // INTEG-REDESIGN
+                                tint = accent,
                                 modifier = Modifier
                                     .padding(start = 12.dp)
-                                    .size(22.dp) // INTEG-REDESIGN: 22dp
+                                    .size(22.dp)
                             )
                         },
                         trailingIcon = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                            IconButton(
+                                onClick = { showApiKey = !showApiKey },
                                 modifier = Modifier.padding(end = 4.dp)
                             ) {
-                                IconButton(onClick = { showApiKey = !showApiKey }) {
-                                    Icon(
-                                        imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (showApiKey) "Hide API Key" else "Show API Key",
-                                        tint = palette.textSecondary // INTEG-REDESIGN
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        clipboardManager.getText()?.text?.let { clipboardText ->
-                                            if (clipboardText.isNotBlank()) {
-                                                onActiveKeyChange(clipboardText.trim())
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_app_paste),
-                                        contentDescription = "Paste",
-                                        tint = palette.textSecondary, // INTEG-REDESIGN
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (showApiKey) "Hide API Key" else "Show API Key",
+                                    tint = palette.textSecondary
+                                )
                             }
                         },
                         visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
                         singleLine = true,
                         maxLines = 1,
-                        shape = RoundedCornerShape(16.dp), // INTEG-REDESIGN: 16dp
+                        shape = CircleShape,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp) // INTEG-REDESIGN: 56dp
+                            .height(56.dp)
                             .testTag("debrid_api_key_input")
                     )
 
                     Text(
                         text = selectedService.tokenUrlHint,
                         fontSize = 12.sp,
-                        color = palette.textSecondary, // INTEG-REDESIGN
+                        color = palette.textSecondary,
                         modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                     )
                 }
 
                 // Divider 2
                 HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
+                    modifier = Modifier.padding(horizontal = 20.dp),
                     thickness = 1.dp,
-                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
+                    color = Color.White.copy(alpha = 0.10f)
                 )
 
-                // Row 3: Test Connection Row
-                val testSubtitle = when {
-                    isTestingConnection -> "Testing connection..."
-                    testStatusMessage != null -> testStatusMessage!!
-                    else -> "Verify your API key with the provider"
-                }
-                val testSubtitleColor = when {
-                    testStatusMessage?.startsWith("✓") == true -> Color(0xFF30D158) // INTEG-REDESIGN: 0xFF30D158
-                    testStatusMessage?.startsWith("❌") == true -> MaterialTheme.colorScheme.error
-                    else -> palette.textSecondary
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = activeKey.isNotBlank() && !isTestingConnection) {
-                            testConnection()
-                        }
-                        .padding(vertical = 18.dp, horizontal = 20.dp), // INTEG-REDESIGN
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp) // INTEG-REDESIGN: 36dp circle
-                                .clip(CircleShape)
-                                .background(accent.copy(alpha = 0.15f)), // INTEG-REDESIGN
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Bolt, // INTEG-REDESIGN: Bolt icon
-                                contentDescription = null,
-                                tint = accent,
-                                modifier = Modifier.size(18.dp) // INTEG-REDESIGN: 18dp
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Test Connection",
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontSize = 16.sp, // INTEG-REDESIGN
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = palette.textPrimary // INTEG-REDESIGN
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = testSubtitle,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 13.sp // INTEG-REDESIGN
-                                ),
-                                color = testSubtitleColor
-                            )
-                        }
-                    }
-
-                    if (isTestingConnection) {
-                        Spacer(modifier = Modifier.width(12.dp))
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = accent
-                        )
-                    }
-                }
-
-                // Divider 3
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 20.dp), // INTEG-REDESIGN
-                    thickness = 1.dp,
-                    color = Color.White.copy(alpha = 0.10f) // INTEG-REDESIGN
-                )
-
-                // Row 4: Priority Selection Row
+                // Row 3: Priority Selection Row
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
@@ -483,9 +390,11 @@ fun IntegrationsDropdownDebridSection(
                     DropdownMenu(
                         expanded = isOrderDropdownExpanded,
                         onDismissRequest = { isOrderDropdownExpanded = false },
-                        modifier = Modifier.background(palette.cardBg), // INTEG-REDESIGN: palette.cardBg
-                        shape = RoundedCornerShape(16.dp), // INTEG-REDESIGN: 16dp
-                        tonalElevation = 8.dp // INTEG-REDESIGN: 8dp
+                        modifier = Modifier
+                            .background(palette.cardBg)
+                            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        tonalElevation = 8.dp
                     ) {
                         val priorityOptions = listOf(
                             "AUTO" to "Auto (Cache check -> instant stream)",

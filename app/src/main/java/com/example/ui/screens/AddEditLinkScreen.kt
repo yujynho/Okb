@@ -334,6 +334,7 @@ fun AddEditLinkScreen(
                             .clickable(
                                 enabled = !isFetchingMagnet,
                                 onClick = {
+                                    triggerVibrate(context) // Soft haptic on torrent button click
                                     val selectedActors = actors.filter { selectedActorIds.contains(it.id) }
                                     val selectedStudios = studios.filter { selectedStudioIds.contains(it.id) }
                                     viewModel.fetchMagnet(
@@ -1011,7 +1012,7 @@ private fun PasteTrailingIcon(
 }
 
 /**
- * Haptic feedback: vibrate pattern 40-30-40 ms (Section 2)
+ * Haptic feedback: soft, light, and smooth vibration when capturing and pasting results
  */
 private fun triggerVibrate(context: android.content.Context) {
     try {
@@ -1023,13 +1024,15 @@ private fun triggerVibrate(context: android.content.Context) {
             context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
         }
         if (vibrator != null && vibrator.hasVibrator()) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                val timings = longArrayOf(0, 40, 30, 40)
-                val amplitudes = intArrayOf(0, 255, 0, 255)
-                vibrator.vibrate(android.os.VibrationEffect.createWaveform(timings, amplitudes, -1))
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                // Soft, light click haptic
+                vibrator.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_CLICK))
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                // Light and smooth 20ms pulse with gentle amplitude (50/255)
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(20, 50))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(longArrayOf(0, 40, 30, 40), -1)
+                vibrator.vibrate(20)
             }
         }
     } catch (_: Exception) {}
