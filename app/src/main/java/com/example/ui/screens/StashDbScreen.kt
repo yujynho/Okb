@@ -223,6 +223,8 @@ fun StashDbScreen(
         }
     }
 
+    var studioToBlock by remember { mutableStateOf<Pair<String?, String>?>(null) }
+
     // Save all selected scenes to Links with batch DB insert
     val saveSelectedScenes = {
         viewModel.saveSelectedStashScenes { savedCount ->
@@ -230,6 +232,75 @@ fun StashDbScreen(
                 snackbarHostState.showSnackbar("Saved $savedCount scene${if (savedCount > 1) "s" else ""} to Links!")
             }
         }
+    }
+
+    if (studioToBlock != null) {
+        val targetName = studioToBlock?.second ?: ""
+        val targetId = studioToBlock?.first
+        AlertDialog(
+            onDismissRequest = { studioToBlock = null },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = palette.cardBg,
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_settings_filter),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    text = "Block Studio?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = palette.textPrimary,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Text(
+                    text = "Do you want to block \"$targetName\"? Scenes from this studio will be filtered out from StashDB results.",
+                    color = palette.textSecondary,
+                    fontSize = 13.5.sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.blockStudio(targetId, targetName)
+                        studioToBlock = null
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Blocked studio: $targetName")
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Block Studio", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { studioToBlock = null },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Cancel", color = palette.textSecondary)
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -771,6 +842,9 @@ fun StashDbScreen(
                                         isAlreadySaved = isAlreadySaved,
                                         onToggleSelect = {
                                             viewModel.toggleStashSceneSelection(scene.id)
+                                        },
+                                        onStudioClick = { id, name ->
+                                            studioToBlock = Pair(id, name)
                                         }
                                     )
                                 }
@@ -1164,7 +1238,8 @@ fun StashGridPhotoCard(
     scene: StashScene,
     isSelected: Boolean,
     isAlreadySaved: Boolean = false,
-    onToggleSelect: () -> Unit
+    onToggleSelect: () -> Unit,
+    onStudioClick: (studioId: String?, studioName: String) -> Unit = { _, _ -> }
 ) {
     val palette = LocalVaultPalette.current
     val accent = LocalAccentColor.current
@@ -1415,12 +1490,19 @@ fun StashGridPhotoCard(
                     )
                 }
 
-                // Row 2: Studio Icon + Studio Name
+                // Row 2: Studio Icon + Studio Name (Clickable to Block Studio)
                 val studioText = scene.studioName ?: "Studio"
+                val hasStudio = !scene.studioName.isNullOrBlank()
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(enabled = hasStudio) {
+                            onStudioClick(scene.studioId, scene.studioName ?: "")
+                        }
+                        .padding(vertical = 1.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_nav_studio),

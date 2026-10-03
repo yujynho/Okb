@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -250,6 +251,7 @@ fun SettingsScreen(
             "DISPLAY" -> SettingsSection.DISPLAY
             "PRIVACY" -> SettingsSection.PRIVACY // ORG-NEW
             "INTEGRATIONS" -> SettingsSection.INTEGRATIONS
+            "FILTER" -> SettingsSection.FILTER
             "DATA_BACKUP" -> SettingsSection.DATA_BACKUP
             "SAMPLE_DATA" -> SettingsSection.SAMPLE_DATA
             else -> SettingsSection.MAIN_MENU // ORG-FIX: Any legacy intent safely lands on MAIN_MENU
@@ -269,6 +271,7 @@ fun SettingsScreen(
         SettingsSection.DISPLAY -> "Display"
         SettingsSection.PRIVACY -> "Privacy" // ORG-NEW
         SettingsSection.INTEGRATIONS -> "Integrations"
+        SettingsSection.FILTER -> "Filter"
         SettingsSection.DATA_BACKUP -> "Data & Backup"
         SettingsSection.SAMPLE_DATA -> "Sample Data"
     }
@@ -354,12 +357,13 @@ fun SettingsScreen(
             ) { section ->
             when (section) {
                 SettingsSection.MAIN_MENU -> {
-                    // ORG-FIX: Clean signature with only onNavigateTo
+                    // ORG-FIX: Clean signature with onNavigateTo and currentSettings
                     SettingsMainMenu(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = padding.calculateTopPadding())
                             .verticalScroll(rememberScrollState()),
+                        currentSettings = currentSettings,
                         onNavigateTo = { currentSection = it }
                     )
                 }
@@ -514,7 +518,7 @@ fun SettingsScreen(
                                     visualTransformation = if (showStashDbKey) VisualTransformation.None else PasswordVisualTransformation(),
                                     singleLine = true,
                                     maxLines = 1,
-                                    shape = CircleShape,
+                                    shape = RoundedCornerShape(14.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(56.dp)
@@ -530,6 +534,23 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+                SettingsSection.FILTER -> {
+                    SettingsFilterSection(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding())
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        enableStudioFilter = currentSettings.enableStudioFilter,
+                        onEnableStudioFilterChange = {
+                            viewModel.updateSettings(currentSettings.copy(enableStudioFilter = it))
+                        },
+                        blockedStudioNames = currentSettings.blockedStudioNames,
+                        onBlockStudio = { name -> viewModel.blockStudio(null, name) },
+                        onUnblockStudio = { name -> viewModel.unblockStudio(name) },
+                        onClearAll = { viewModel.clearAllBlockedStudios() }
+                    )
                 }
                 SettingsSection.DATA_BACKUP -> {
                     DataBackupSection(
@@ -598,14 +619,16 @@ fun SettingsScreen(
 @Composable
 private fun SettingsMainMenu(
     modifier: Modifier = Modifier,
-    onNavigateTo: (SettingsSection) -> Unit // ORG-FIX: Clean signature with only onNavigateTo
+    currentSettings: SettingsEntity,
+    onNavigateTo: (SettingsSection) -> Unit
 ) {
     val palette = LocalVaultPalette.current
+    val accent = LocalAccentColor.current
 
     Column(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Single unified GroupedCard containing all 5 category rows
+        // Single unified GroupedCard containing all category rows
         GroupedCard {
             // 1. Display
             SettingsRow(
@@ -634,7 +657,43 @@ private fun SettingsMainMenu(
                 onClick = { onNavigateTo(SettingsSection.INTEGRATIONS) }
             )
             SettingsDivider()
-            // 4. Data & Backup
+            // 4. Filter - NEW
+            SettingsRow(
+                title = "Filter",
+                subtitle = if (currentSettings.blockedStudioNames.isNotEmpty()) {
+                    "${currentSettings.blockedStudioNames.size} studio(s) blocked"
+                } else {
+                    "Blocked studios & content filters"
+                },
+                icon = painterResource(id = R.drawable.ic_settings_filter),
+                trailing = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (currentSettings.blockedStudioNames.isNotEmpty()) {
+                            Surface(
+                                shape = CircleShape,
+                                color = accent.copy(alpha = 0.15f),
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${currentSettings.blockedStudioNames.size}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = accent
+                                    )
+                                }
+                            }
+                        }
+                        SettingsNavigationChevron()
+                    }
+                },
+                onClick = { onNavigateTo(SettingsSection.FILTER) }
+            )
+            SettingsDivider()
+            // 5. Data & Backup
             SettingsRow(
                 title = "Data & Backup",
                 subtitle = "Export & restore your vault",
@@ -643,7 +702,7 @@ private fun SettingsMainMenu(
                 onClick = { onNavigateTo(SettingsSection.DATA_BACKUP) }
             )
             SettingsDivider()
-            // 5. Sample Dataset
+            // 6. Sample Dataset
             SettingsRow(
                 title = "Sample Dataset",
                 subtitle = "Demo data for testing",
@@ -665,6 +724,341 @@ private fun SettingsMainMenu(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         ) // ORG-FIX
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun SettingsFilterSection(
+    modifier: Modifier = Modifier,
+    enableStudioFilter: Boolean,
+    onEnableStudioFilterChange: (Boolean) -> Unit,
+    blockedStudioNames: List<String>,
+    onBlockStudio: (String) -> Unit,
+    onUnblockStudio: (String) -> Unit,
+    onClearAll: () -> Unit
+) {
+    val palette = LocalVaultPalette.current
+    val accent = LocalAccentColor.current
+    val isLight = MaterialTheme.colorScheme.background.luminance() > 0.5f
+
+    var newStudioInput by remember { mutableStateOf("") }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showClearConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = palette.cardBg,
+            title = {
+                Text(
+                    text = "Clear All Blocked Studios?",
+                    fontWeight = FontWeight.Bold,
+                    color = palette.textPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "All blocked studios will be removed from the filter and will be allowed to appear in StashDB results again.",
+                    color = palette.textSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearAll()
+                        showClearConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Clear All")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text("Cancel", color = palette.textSecondary)
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // Master Filter Switch Card
+        GroupedCard {
+            SettingsRow(
+                title = "Enable Studio Filter",
+                subtitle = "Exclude blocked studios from StashDB search results",
+                icon = painterResource(id = R.drawable.ic_settings_filter),
+                trailing = {
+                    Switch(
+                        checked = enableStudioFilter,
+                        onCheckedChange = onEnableStudioFilterChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = palette.textMuted,
+                            uncheckedTrackColor = palette.border
+                        )
+                    )
+                },
+                onClick = { onEnableStudioFilterChange(!enableStudioFilter) }
+            )
+        }
+
+        // Add Studio Input Section
+        SettingsSectionHeader(text = "Add Studio to Block")
+        GroupedCard {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = newStudioInput,
+                    onValueChange = { newStudioInput = it },
+                    placeholder = {
+                        Text(
+                            "Enter studio name to block...",
+                            fontSize = 14.sp,
+                            color = palette.textSecondary
+                        )
+                    },
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 14.sp,
+                        color = palette.textPrimary
+                    ),
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_nav_studio),
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (newStudioInput.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    val name = newStudioInput.trim()
+                                    if (name.isNotBlank()) {
+                                        onBlockStudio(name)
+                                        newStudioInput = ""
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Block Studio",
+                                    tint = accent
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f),
+                        unfocusedContainerColor = if (isLight) Color.Black.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.05f),
+                        focusedBorderColor = accent,
+                        unfocusedBorderColor = palette.border,
+                        focusedTextColor = palette.textPrimary,
+                        unfocusedTextColor = palette.textPrimary,
+                        cursorColor = accent
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "You can also tap any studio name directly on StashDB scene cards to block it instantly.",
+                    fontSize = 12.sp,
+                    color = palette.textSecondary,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+        }
+
+        // Blocked Studios List Section
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SettingsSectionHeader(text = "Blocked Studios (${blockedStudioNames.size})")
+            if (blockedStudioNames.isNotEmpty()) {
+                TextButton(
+                    onClick = { showClearConfirmDialog = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = "Clear All",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        if (blockedStudioNames.isEmpty()) {
+            GroupedCard(modifier = Modifier.height(180.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 20.dp, horizontal = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = palette.surface,
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_settings_filter),
+                                    contentDescription = null,
+                                    tint = palette.textMuted.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "No Blocked Studios",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = palette.textPrimary
+                        )
+                        Text(
+                            text = "Studios you block from StashDB will appear here. All studio scenes will be displayed.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = palette.textSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        } else {
+            val listScrollState = rememberScrollState()
+            GroupedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(listScrollState)
+                    ) {
+                        blockedStudioNames.forEachIndexed { index, studioName ->
+                            if (index > 0) {
+                                SettingsDivider()
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_nav_studio),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = studioName,
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 15.sp
+                                            ),
+                                            color = palette.textPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "Blocked from StashDB",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                            color = palette.textSecondary
+                                        )
+                                    }
+                                }
+
+                                Button(
+                                    onClick = { onUnblockStudio(studioName) },
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isLight) Color.Black.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.08f),
+                                        contentColor = palette.textPrimary
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(
+                                        text = "Unblock",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (listScrollState.canScrollBackward) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(14.dp)
+                                .align(Alignment.TopCenter)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(palette.cardBg, Color.Transparent)
+                                    )
+                                )
+                        )
+                    }
+                    if (listScrollState.canScrollForward) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(14.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color.Transparent, palette.cardBg)
+                                    )
+                                )
+                        )
+                    }
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
     }

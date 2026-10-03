@@ -80,5 +80,8 @@ data class SettingsEntity(
     val lastSyncTime: Long = 0L,
     val defaultKeysSeeded: Boolean = false,
     val allowUncachedDownloads: Boolean = false,
-    val debridOrder: String = "AUTO" // "AUTO", "REAL_DEBRID_FIRST", "TORBOX_FIRST"
+    val debridOrder: String = "AUTO", // "AUTO", "REAL_DEBRID_FIRST", "TORBOX_FIRST"
+    val enableStudioFilter: Boolean = true,
+    val blockedStudioNames: List<String> = emptyList(),
+    val blockedStudioIds: List<String> = emptyList()
 )

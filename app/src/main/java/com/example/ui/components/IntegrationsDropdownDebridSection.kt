@@ -324,7 +324,7 @@ fun IntegrationsDropdownDebridSection(
                         visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
                         singleLine = true,
                         maxLines = 1,
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)

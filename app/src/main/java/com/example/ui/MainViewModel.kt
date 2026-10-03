@@ -43,6 +43,7 @@ enum class SettingsSection {
     DISPLAY,
     PRIVACY, // ORG-NEW
     INTEGRATIONS,
+    FILTER,
     DATA_BACKUP,
     SAMPLE_DATA
 }
@@ -633,6 +634,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun isStudioBlocked(studioId: String?, studioName: String?): Boolean {
+        val current = settings.value
+        if (!current.enableStudioFilter) return false
+        val sName = studioName?.trim()
+        val sId = studioId?.trim()
+        if (!sId.isNullOrBlank() && current.blockedStudioIds.contains(sId)) return true
+        if (!sName.isNullOrBlank() && current.blockedStudioNames.any { it.equals(sName, ignoreCase = true) }) return true
+        return false
+    }
+
+    fun blockStudio(studioId: String?, studioName: String?) {
+        val name = studioName?.trim() ?: return
+        if (name.isBlank()) return
+        val current = settings.value
+        val updatedNames = (current.blockedStudioNames + name).distinct()
+        val updatedIds = if (!studioId.isNullOrBlank()) (current.blockedStudioIds + studioId.trim()).distinct() else current.blockedStudioIds
+        updateSettings(current.copy(blockedStudioNames = updatedNames, blockedStudioIds = updatedIds))
+
+        // Immediately filter out from active scene results
+        _stashScenesList.value = _stashScenesList.value.filterNot { scene ->
+            (scene.studioId != null && updatedIds.contains(scene.studioId)) ||
+            (scene.studioName != null && updatedNames.any { it.equals(scene.studioName.trim(), ignoreCase = true) })
+        }
+    }
+
+    fun unblockStudio(studioName: String) {
+        val name = studioName.trim()
+        val current = settings.value
+        val updatedNames = current.blockedStudioNames.filterNot { it.equals(name, ignoreCase = true) }
+        updateSettings(current.copy(blockedStudioNames = updatedNames))
+    }
+
+    fun clearAllBlockedStudios() {
+        val current = settings.value
+        updateSettings(current.copy(blockedStudioNames = emptyList(), blockedStudioIds = emptyList()))
+    }
+
     fun selectStashPerformer(performer: StashPerformer, apiKey: String) {
         _stashSelectedPerformer.value = performer
         _stashSelectedStudio.value = null
@@ -650,8 +688,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 perPage = 30
             )
             res.onSuccess { queryResult ->
+                val currentSettings = settings.value
+                val filteredScenes = if (currentSettings.enableStudioFilter) {
+                    queryResult.scenes.filterNot { isStudioBlocked(it.studioId, it.studioName) }
+                } else {
+                    queryResult.scenes
+                }
                 _stashTotalScenesCount.value = queryResult.count
-                _stashScenesList.value = queryResult.scenes
+                _stashScenesList.value = filteredScenes
                 _stashCanLoadMore.value = queryResult.scenes.isNotEmpty() && (1 * 30 < queryResult.count)
                 _isStashLoadingScenes.value = false
             }.onFailure { err ->
@@ -679,8 +723,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 providedChildIds = studio.childIds
             )
             res.onSuccess { queryResult ->
+                val currentSettings = settings.value
+                val filteredScenes = if (currentSettings.enableStudioFilter) {
+                    queryResult.scenes.filterNot { isStudioBlocked(it.studioId, it.studioName) }
+                } else {
+                    queryResult.scenes
+                }
                 _stashTotalScenesCount.value = queryResult.count
-                _stashScenesList.value = queryResult.scenes
+                _stashScenesList.value = filteredScenes
                 _stashCanLoadMore.value = queryResult.scenes.isNotEmpty() && (1 * 30 < queryResult.count)
                 _isStashLoadingScenes.value = false
             }.onFailure { err ->
@@ -709,7 +759,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 res.onSuccess { queryResult ->
                     _stashCurrentPage.value = nextPage
                     val current = _stashScenesList.value
-                    val newUnique = queryResult.scenes.filter { ns -> current.none { it.id == ns.id } }
+                    val currentSettings = settings.value
+                    val filteredResult = if (currentSettings.enableStudioFilter) {
+                        queryResult.scenes.filterNot { isStudioBlocked(it.studioId, it.studioName) }
+                    } else {
+                        queryResult.scenes
+                    }
+                    val newUnique = filteredResult.filter { ns -> current.none { it.id == ns.id } }
                     val updated = current + newUnique
                     _stashScenesList.value = updated
                     _stashCanLoadMore.value = queryResult.scenes.isNotEmpty() && (nextPage * 30 < queryResult.count)
@@ -725,7 +781,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 res.onSuccess { queryResult ->
                     _stashCurrentPage.value = nextPage
                     val current = _stashScenesList.value
-                    val newUnique = queryResult.scenes.filter { ns -> current.none { it.id == ns.id } }
+                    val currentSettings = settings.value
+                    val filteredResult = if (currentSettings.enableStudioFilter) {
+                        queryResult.scenes.filterNot { isStudioBlocked(it.studioId, it.studioName) }
+                    } else {
+                        queryResult.scenes
+                    }
+                    val newUnique = filteredResult.filter { ns -> current.none { it.id == ns.id } }
                     val updated = current + newUnique
                     _stashScenesList.value = updated
                     _stashCanLoadMore.value = queryResult.scenes.isNotEmpty() && (nextPage * 30 < queryResult.count)
